@@ -117,13 +117,13 @@ void convert_adjlist(std::string inputfile, Shuffler shuffler)
 
 void convert(std::string basefilename)
 {
+    LOG(INFO) << "shuffle `" << basefilename << "'";
     if (basefilename.empty())
         LOG(FATAL) << "empty file name";
     if (is_exists(binedgelist_name(basefilename))) {
-        LOG(INFO) << "shuffled file `" << binedgelist_name(basefilename) << "' exists";
+        LOG(INFO) << "skip";
         return;
     }
-    LOG(INFO) << "shuffle `" << basefilename;
     Shuffler shuffler(basefilename);
     shuffler.init();
     if (FLAGS_filetype == "adjlist") {

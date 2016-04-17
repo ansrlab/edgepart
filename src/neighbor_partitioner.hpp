@@ -236,7 +236,6 @@ class NeighborPartitioner
         if (is_boundary[vid]) return;
         is_boundary[vid] = true;
         if (!is_core[vid]) {
-            /* DLOG(INFO) << "add " << vid << " to boundary"; */
             min_heap.insert(adj_out[vid].size() + adj_in[vid].size(), vid);
         }
 
@@ -280,7 +279,8 @@ class NeighborPartitioner
 
     void split()
     {
-        LOG(INFO) << "start partitioning";
+        LOG(INFO) << "partition `" << basefilename << "'";
+        LOG(INFO) << "number of partitions: " << p;
 
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -290,7 +290,6 @@ class NeighborPartitioner
         for (bucket = 0; bucket < p - 1; bucket++) {
             DLOG(INFO) << "start partition " << bucket;
             read_more();
-            DLOG(INFO) << "sample size: " << sample_size;
             while (occupied[bucket] < capacity) {
                 vid_t d = -1, vid;
                 if (!min_heap.get_min(d, vid)) {
@@ -311,15 +310,14 @@ class NeighborPartitioner
                         << adj_out[vid].size() + adj_in[vid].size();
                 }
 
-                /* DLOG(INFO) << bucket << ": " << vid << ", " << d; */
                 occupy_vertex(vid);
             }
             min_heap.clear();
         }
-        DLOG(INFO) << "start partition " << p - 1;
+        DLOG(INFO) << "last partition";
         bucket = p - 1;
         read_remaining();
-        CHECK_EQ(assigned_edges, num_edges) << assigned_edges << ", " << num_edges;
+        fin.close();
         rep (i, p)
             DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
         size_t max_occupied = *std::max_element(occupied.begin(), occupied.end());
@@ -330,5 +328,6 @@ class NeighborPartitioner
         LOG(INFO) << "total mirrors: " << total_mirrors;
         LOG(INFO) << "replication factor: "
                   << (double)total_mirrors / num_vertices;
+        CHECK_EQ(assigned_edges, num_edges);
     }
 };
