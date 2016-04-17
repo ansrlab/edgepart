@@ -125,7 +125,7 @@ class NeighborPartitioner
     vid_t num_vertices;
     size_t num_edges, assigned_edges;
     int p;
-    double average_degree;
+    double average_degree, local_average_degree;
     int bucket;
     size_t sample_size, max_sample_size, capacity;
     std::vector<size_t> occupied;
@@ -148,8 +148,9 @@ class NeighborPartitioner
         LOG(INFO) << "num_vertices: " << num_vertices
                   << ", num_edges: " << num_edges;
 
+        average_degree = (double)num_edges * 2 / num_vertices;
         assigned_edges = 0;
-        max_sample_size = num_vertices * 4;
+        max_sample_size = num_vertices * 2;
         sample_size = 0;
         capacity = (double)num_edges / p + 1;
         occupied.assign(p, 0);
@@ -178,10 +179,12 @@ class NeighborPartitioner
         rep (i, bucket) {
             if ((is_cores[i][e.first] || is_cores[i][e.second]) &&
                 occupied[i] < capacity) {
-                if (is_cores[i][e.second])
-                    is_boundarys[i][e.first] = true;
-                else
-                    is_boundarys[i][e.second] = true;
+                if (is_cores[i][e.first] && degrees[e.second] > average_degree)
+                    continue;
+                if (is_cores[i][e.second] && degrees[e.first] > average_degree)
+                    continue;
+                is_boundarys[i][e.first] = true;
+                is_boundarys[i][e.second] = true;
                 assign_edge(i, e.first, e.second);
                 return false;
             }
@@ -194,6 +197,8 @@ class NeighborPartitioner
     {
         assigned_edges++;
         occupied[bucket]++;
+        degrees[from]--;
+        degrees[to]--;
         num_mirrors[bucket].insert(from);
         num_mirrors[bucket].insert(to);
     }
@@ -292,15 +297,16 @@ class NeighborPartitioner
         for (bucket = 0; bucket < p - 1; bucket++) {
             DLOG(INFO) << "start partition " << bucket;
             read_more();
-            average_degree = 2 * (double)sample_size / num_vertices;
-            while (occupied[bucket] < capacity) {
+            local_average_degree = 2 * (double)sample_size / num_vertices;
+            size_t local_capacity = sample_size / (p - bucket);
+            while (occupied[bucket] < local_capacity) {
                 vid_t d, vid;
                 if (!min_heap.get_min(d, vid)) {
                     vid = dis(gen);
                     int count = 0;
                     while (count < num_vertices &&
                            (adj_out[vid].size() + adj_in[vid].size() == 0 ||
-                            adj_out[vid].size() + adj_in[vid].size() > 2 * average_degree ||
+                            adj_out[vid].size() + adj_in[vid].size() > 2 * local_average_degree ||
                             is_cores[bucket][vid])) {
                         vid = (vid + ++count) % num_vertices;
                     }
