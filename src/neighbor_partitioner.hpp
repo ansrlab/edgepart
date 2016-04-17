@@ -238,11 +238,10 @@ class NeighborPartitioner
     }
 
     void add_boundary(vid_t vid) {
-        if (occupied[bucket] >= local_capacity)
-            return;
         std::vector<bool> &is_core = is_cores[bucket];
         std::vector<bool> &is_boundary = is_boundarys[bucket];
-        if (is_boundary[vid]) return;
+        if (is_boundary[vid])
+            return;
         is_boundary[vid] = true;
         if (!is_core[vid]) {
             min_heap.insert(adj_out[vid].size() + adj_in[vid].size(), vid);
@@ -256,7 +255,6 @@ class NeighborPartitioner
                     sample_size--;
                     assign_edge(bucket, direction ? vid : *it, direction ? *it : vid);
                     min_heap.decrease_key(vid);
-                    adj_r[*it].erase(vid);
                     it = adj[vid].erase(it);
                 } else if (is_boundary[*it]) {
                     sample_size--;
@@ -278,13 +276,17 @@ class NeighborPartitioner
         if (d == 0)
             return;
 
+        add_boundary(vid);
+
         for (auto& w : adj_out[vid]) {
             add_boundary(w);
         }
+        adj_out[vid].clear();
 
         for (auto& w : adj_in[vid]) {
             add_boundary(w);
         }
+        adj_in[vid].clear();
     }
 
     void split()
@@ -317,7 +319,6 @@ class NeighborPartitioner
                         DLOG(INFO) << "not free vertices";
                         break;
                     }
-                    is_boundarys[bucket][vid] = true;
                     d = adj_out[vid].size() + adj_in[vid].size();
                 } else {
                     min_heap.remove(vid);
