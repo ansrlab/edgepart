@@ -68,6 +68,7 @@ public:
     }
 
     void decrease_key(KeyType key, ValueType d = 1) {
+        if (d == 0) return;
         auto it = key2idx.find(key);
         CHECK(it != key2idx.end()) << "key not found";
         IdxType cur = it->second;
@@ -148,7 +149,6 @@ class NeighborPartitioner
                   << ", num_edges: " << num_edges;
 
         assigned_edges = 0;
-        average_degree = (double)num_edges * 2 / num_vertices;
         max_sample_size = num_vertices * 4;
         sample_size = 0;
         capacity = (double)num_edges / p + 1;
@@ -176,13 +176,14 @@ class NeighborPartitioner
         }
 
         rep (i, bucket) {
-            if (is_cores[i][e.first] || is_cores[i][e.second]) {
-                is_boundarys[i][e.first] = true;
-                is_boundarys[i][e.second] = true;
-                if (occupied[i] < capacity) {
-                    assign_edge(i, e.first, e.second);
-                    return false;
-                }
+            if ((is_cores[i][e.first] || is_cores[i][e.second]) &&
+                occupied[i] < capacity) {
+                if (is_cores[i][e.second])
+                    is_boundarys[i][e.first] = true;
+                else
+                    is_boundarys[i][e.second] = true;
+                assign_edge(i, e.first, e.second);
+                return false;
             }
         }
 
@@ -230,7 +231,6 @@ class NeighborPartitioner
     }
 
     void add_boundary(vid_t vid) {
-        if (occupied[bucket] >= capacity) return;
         std::vector<bool> &is_core = is_cores[bucket];
         std::vector<bool> &is_boundary = is_boundarys[bucket];
         if (is_boundary[vid]) return;
@@ -247,7 +247,6 @@ class NeighborPartitioner
                     sample_size--;
                     assign_edge(bucket, direction ? vid : *it, direction ? *it : vid);
                     min_heap.decrease_key(vid);
-                    adj_r[*it].erase(vid);
                     it = adj[vid].erase(it);
                 } else if (is_boundary[*it]) {
                     sample_size--;
@@ -261,20 +260,23 @@ class NeighborPartitioner
         }
     }
 
-    void occupy_vertex(vid_t vid)
+    void occupy_vertex(vid_t vid, vid_t d)
     {
-        std::vector<bool> &is_core = is_cores[bucket];
+        CHECK(!is_cores[bucket][vid]) << "add " << vid << " to core again";
+        is_cores[bucket][vid] = true;
 
-        CHECK(!is_core[vid]) << "add " << vid << " to core again";
-        is_core[vid] = true;
+        if (d == 0)
+            return;
 
         for (auto& w : adj_out[vid]) {
             add_boundary(w);
         }
+        adj_out[vid].clear();
 
         for (auto& w : adj_in[vid]) {
             add_boundary(w);
         }
+        adj_in[vid].clear();
     }
 
     void split()
@@ -290,27 +292,28 @@ class NeighborPartitioner
         for (bucket = 0; bucket < p - 1; bucket++) {
             DLOG(INFO) << "start partition " << bucket;
             read_more();
+            average_degree = 2 * (double)sample_size / num_vertices;
             while (occupied[bucket] < capacity) {
-                vid_t d = -1, vid;
+                vid_t d, vid;
                 if (!min_heap.get_min(d, vid)) {
                     vid = dis(gen);
                     int count = 0;
                     while (count < num_vertices &&
-                           (degrees[vid] > average_degree ||
+                           (adj_out[vid].size() + adj_in[vid].size() == 0 ||
+                            adj_out[vid].size() + adj_in[vid].size() > 2 * average_degree ||
                             is_cores[bucket][vid])) {
                         vid = (vid + ++count) % num_vertices;
                     }
                     if (count == num_vertices)
                         break;
                     is_boundarys[bucket][vid] = true;
+                    d = adj_out[vid].size() + adj_in[vid].size();
                 } else {
                     min_heap.remove(vid);
-                    CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size())
-                        << "heap value: " << d << ", real degree: "
-                        << adj_out[vid].size() + adj_in[vid].size();
+                    CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size());
                 }
 
-                occupy_vertex(vid);
+                occupy_vertex(vid, d);
             }
             min_heap.clear();
         }
