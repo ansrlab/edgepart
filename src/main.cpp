@@ -1,4 +1,5 @@
 #include <string>
+#include <chrono>
 
 #include "util.hpp"
 #include "conversions.hpp"
@@ -23,8 +24,16 @@ int main(int argc, char *argv[])
     }
     google::HandleCommandLineHelpFlags();
 
+    auto start = std::chrono::system_clock::now();
     convert(FLAGS_filename);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    LOG(INFO) << "shuffle time: " << diff.count();
 
+    start = end;
     NeighborPartitioner partitioner(FLAGS_filename);
     partitioner.split();
+    end = std::chrono::system_clock::now();
+    diff = end - start;
+    LOG(INFO) << "partition time: " << diff.count();
 }
