@@ -127,7 +127,8 @@ class NeighborPartitioner
     int p;
     double average_degree, local_average_degree;
     int bucket;
-    size_t sample_size, max_sample_size, capacity;
+    size_t sample_size, max_sample_size;
+    size_t capacity, local_capacity;
     std::vector<size_t> occupied;
     std::ifstream fin;
     std::string basefilename;
@@ -151,8 +152,9 @@ class NeighborPartitioner
         average_degree = (double)num_edges * 2 / num_vertices;
         assigned_edges = 0;
         max_sample_size = num_vertices * 2;
+        local_average_degree = 2 * (double)max_sample_size / num_vertices;
         sample_size = 0;
-        capacity = (double)num_edges / p + 1;
+        capacity = (double)num_edges * 1.05 / p + 1;
         occupied.assign(p, 0);
         num_mirrors.resize(p);
         adj_out.resize(num_vertices);
@@ -236,6 +238,8 @@ class NeighborPartitioner
     }
 
     void add_boundary(vid_t vid) {
+        if (occupied[bucket] >= local_capacity)
+            return;
         std::vector<bool> &is_core = is_cores[bucket];
         std::vector<bool> &is_boundary = is_boundarys[bucket];
         if (is_boundary[vid]) return;
@@ -252,6 +256,7 @@ class NeighborPartitioner
                     sample_size--;
                     assign_edge(bucket, direction ? vid : *it, direction ? *it : vid);
                     min_heap.decrease_key(vid);
+                    adj_r[*it].erase(vid);
                     it = adj[vid].erase(it);
                 } else if (is_boundary[*it]) {
                     sample_size--;
@@ -276,12 +281,10 @@ class NeighborPartitioner
         for (auto& w : adj_out[vid]) {
             add_boundary(w);
         }
-        adj_out[vid].clear();
 
         for (auto& w : adj_in[vid]) {
             add_boundary(w);
         }
-        adj_in[vid].clear();
     }
 
     void split()
@@ -297,8 +300,8 @@ class NeighborPartitioner
         for (bucket = 0; bucket < p - 1; bucket++) {
             DLOG(INFO) << "start partition " << bucket;
             read_more();
-            local_average_degree = 2 * (double)sample_size / num_vertices;
-            size_t local_capacity = sample_size / (p - bucket);
+            DLOG(INFO) << "sample size: " << sample_size;
+            local_capacity = sample_size / (p - bucket);
             while (occupied[bucket] < local_capacity) {
                 vid_t d, vid;
                 if (!min_heap.get_min(d, vid)) {
@@ -310,8 +313,10 @@ class NeighborPartitioner
                             is_cores[bucket][vid])) {
                         vid = (vid + ++count) % num_vertices;
                     }
-                    if (count == num_vertices)
+                    if (count == num_vertices) {
+                        DLOG(INFO) << "not free vertices";
                         break;
+                    }
                     is_boundarys[bucket][vid] = true;
                     d = adj_out[vid].size() + adj_in[vid].size();
                 } else {
@@ -330,7 +335,7 @@ class NeighborPartitioner
         rep (i, p)
             DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
         size_t max_occupied = *std::max_element(occupied.begin(), occupied.end());
-        LOG(INFO) << "balance: " << (double)max_occupied / capacity;
+        LOG(INFO) << "balance: " << (double)max_occupied / ((double) num_edges / p);
         size_t total_mirrors = 0;
         rep (i, p)
             total_mirrors += num_mirrors[i].size();
