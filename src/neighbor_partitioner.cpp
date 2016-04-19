@@ -2,15 +2,13 @@
 
 void NeighborPartitioner::read_more()
 {
-    while (sample_size < max_sample_size && !fin.eof()) {
-        edge_t e;
-        fin.read((char *)&e, sizeof(edge_t));
-        if (fin.eof())
-            return;
+    while (sample_size < max_sample_size && fin_ptr < fin_end) {
+        edge_t *e = (edge_t *)fin_ptr;
+        fin_ptr += sizeof(edge_t);
         if (check_edge(e)) {
             sample_size++;
-            adj_out[e.first].insert(e.second);
-            adj_in[e.second].insert(e.first);
+            adj_out[e->first].push_back(e->second);
+            adj_in[e->second].push_back(e->first);
         }
     }
 }
@@ -21,13 +19,11 @@ void NeighborPartitioner::read_remaining()
         for (auto &v : adj_out[u])
             assign_edge(p - 1, u, v);
 
-    while (!fin.eof()) {
-        edge_t e;
-        fin.read((char *)&e, sizeof(edge_t));
-        if (fin.eof())
-            return;
+    while (fin_ptr < fin_end) {
+        edge_t *e = (edge_t *)fin_ptr;
+        fin_ptr += sizeof(edge_t);
         if (check_edge(e)) {
-            assign_edge(p - 1, e.first, e.second);
+            assign_edge(p - 1, e->first, e->second);
         }
     }
 }
@@ -41,11 +37,16 @@ void NeighborPartitioner::split()
     std::mt19937 gen(rd());
     std::uniform_int_distribution<vid_t> dis(0, num_vertices - 1);
 
+    Timer read_timer, compute_timer;
+
     min_heap.reset(num_vertices);
     for (bucket = 0; bucket < p - 1; bucket++) {
         DLOG(INFO) << "start partition " << bucket;
+        read_timer.start();
         read_more();
+        read_timer.stop();
         DLOG(INFO) << "sample size: " << sample_size;
+        compute_timer.start();
         local_capacity = sample_size / (p - bucket);
         while (occupied[bucket] < local_capacity) {
             vid_t d, vid;
@@ -72,11 +73,13 @@ void NeighborPartitioner::split()
             occupy_vertex(vid, d);
         }
         min_heap.clear();
+        compute_timer.stop();
     }
     DLOG(INFO) << "last partition";
     bucket = p - 1;
+    read_timer.start();
     read_remaining();
-    fin.close();
+    read_timer.stop();
     rep (i, p)
         DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
     size_t max_occupied = *std::max_element(occupied.begin(), occupied.end());
@@ -86,7 +89,15 @@ void NeighborPartitioner::split()
         total_mirrors += num_mirrors[i].size();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
+    LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
+    LOG(INFO) << "time used for partitioning: " << compute_timer.get_time();
     LOG_IF(WARNING, assigned_edges != num_edges)
         << "assigned_edges != num_edges: " << assigned_edges << " vs. "
         << num_edges;
+
+    if (munmap(fin_map, filesize) == -1) {
+        close(fin);
+        PLOG(FATAL) << "Error un-mmapping the file";
+    }
+    close(fin);
 }
