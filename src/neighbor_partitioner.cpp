@@ -16,14 +16,30 @@ void NeighborPartitioner::read_more()
 void NeighborPartitioner::read_remaining()
 {
     rep (u, num_vertices)
-        for (auto &v : adj_out[u])
+        for (auto &v : adj_out[u]) {
+            is_boundarys[p - 1][u] = true;
+            is_boundarys[p - 1][v] = true;
             assign_edge(p - 1, u, v);
+        }
 
     while (fin_ptr < fin_end) {
         edge_t *e = (edge_t *)fin_ptr;
         fin_ptr += sizeof(edge_t);
         if (check_edge(e)) {
+            is_boundarys[p - 1][e->first] = true;
+            is_boundarys[p - 1][e->second] = true;
             assign_edge(p - 1, e->first, e->second);
+        }
+    }
+
+    rep (i, num_vertices) {
+        if (is_boundarys[p - 1][i]) {
+            is_cores[p - 1][i] = true;
+            rep (j, p - 1)
+                if (is_cores[j][i]) {
+                    is_cores[p - 1][i] = false;
+                    break;
+                }
         }
     }
 }
@@ -39,7 +55,7 @@ void NeighborPartitioner::split()
 
     Timer read_timer, compute_timer;
 
-    min_heap.reset(num_vertices);
+    min_heap.reserve(num_vertices);
     for (bucket = 0; bucket < p - 1; bucket++) {
         DLOG(INFO) << "start partition " << bucket;
         read_timer.start();
@@ -86,7 +102,7 @@ void NeighborPartitioner::split()
     LOG(INFO) << "balance: " << (double)max_occupied / ((double)num_edges / p);
     size_t total_mirrors = 0;
     rep (i, p)
-        total_mirrors += num_mirrors[i].size();
+        total_mirrors += is_boundarys[i].count();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
     LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();

@@ -5,11 +5,12 @@
 #include <iostream>
 #include <fstream>
 #include <random>
-#include <unordered_set>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+#include <boost/dynamic_bitset.hpp>
 
 #include "util.hpp"
 #include "min_heap.hpp"
@@ -37,8 +38,7 @@ class NeighborPartitioner
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
     std::vector<vid_t> degrees;
-    std::vector<std::vector<bool>> is_cores, is_boundarys;
-    std::vector<std::unordered_set<vid_t>> num_mirrors;
+    std::vector<boost::dynamic_bitset<>> is_cores, is_boundarys;
 
     bool check_edge(const edge_t *e)
     {
@@ -73,8 +73,6 @@ class NeighborPartitioner
         occupied[bucket]++;
         degrees[from]--;
         degrees[to]--;
-        num_mirrors[bucket].insert(from);
-        num_mirrors[bucket].insert(to);
     }
 
     size_t erase(std::vector<vid_t> &neighbors, vid_t v)
@@ -92,8 +90,8 @@ class NeighborPartitioner
 
     void add_boundary(vid_t vid)
     {
-        std::vector<bool> &is_core = is_cores[bucket];
-        std::vector<bool> &is_boundary = is_boundarys[bucket];
+        boost::dynamic_bitset<> &is_core = is_cores[bucket];
+        boost::dynamic_bitset<> &is_boundary = is_boundarys[bucket];
         if (is_boundary[vid])
             return;
         is_boundary[vid] = true;
@@ -187,15 +185,14 @@ class NeighborPartitioner
         sample_size = 0;
         capacity = (double)num_edges * 1.05 / p + 1;
         occupied.assign(p, 0);
-        num_mirrors.resize(p);
         adj_out.resize(num_vertices);
         adj_in.resize(num_vertices);
         rep(i, num_vertices) {
             adj_out[i].reserve(local_average_degree);
             adj_in[i].reserve(local_average_degree);
         }
-        is_cores.assign(p, std::vector<bool>(num_vertices));
-        is_boundarys.assign(p, std::vector<bool>(num_vertices));
+        is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
+        is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
 
         degrees.resize(num_vertices);
         std::ifstream degree_file(degree_name(basefilename), std::ios::binary);

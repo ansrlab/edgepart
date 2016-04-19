@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <boost/unordered_map.hpp>
 
 #include "util.hpp"
 
@@ -10,7 +9,7 @@ class MinHeap {
 private:
     IdxType n;
     std::vector<std::pair<ValueType, KeyType>> heap;
-    boost::unordered_map<KeyType, IdxType> key2idx;
+    std::vector<IdxType> key2idx;
 
 public:
     MinHeap() : n(0), heap(), key2idx() { }
@@ -55,14 +54,13 @@ public:
     }
 
     bool contains(KeyType key) {
-        return key2idx.count(key);
+        return key2idx[key] < n && heap[key2idx[key]].second == key;
     }
 
     void decrease_key(KeyType key, ValueType d = 1) {
         if (d == 0) return;
-        auto it = key2idx.find(key);
-        CHECK(it != key2idx.end()) << "key not found";
-        IdxType cur = it->second;
+        IdxType cur = key2idx[key];
+        CHECK(cur < n && heap[cur].second == key) << "key not found";
 
         CHECK_GE(heap[cur].first, d) << "value cannot be negative";
         heap[cur].first -= d;
@@ -70,10 +68,9 @@ public:
     }
 
     bool remove(KeyType key) {
-        auto it = key2idx.find(key);
-        if (it == key2idx.end())
+        IdxType cur = key2idx[key];
+        if (cur >= n || heap[cur].second != key)
             return false;
-        IdxType cur = it->second;
 
         n--;
         if (n > 0) {
@@ -82,7 +79,6 @@ public:
             cur = shift_up(cur);
             shift_down(cur);
         }
-        key2idx.erase(it);
         return true;
     }
 
@@ -95,15 +91,13 @@ public:
             return false;
     }
 
-    void reset(IdxType nelements) {
+    void reserve(IdxType nelements) {
         n = 0;
         heap.resize(nelements);
-        key2idx.clear();
+        key2idx.resize(nelements);
     }
 
     void clear() {
         n = 0;
-        heap.clear();
-        key2idx.clear();
     }
 };
