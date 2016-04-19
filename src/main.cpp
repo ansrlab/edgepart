@@ -7,13 +7,19 @@
 
 DECLARE_bool(help);
 DECLARE_bool(helpshort);
+
+DEFINE_int32(p, 10, "number of parititions");
+DEFINE_uint64(memsize, 4096, "memory size in megabytes");
 DEFINE_string(filename, "", "the file name of the input graph");
 DEFINE_string(filetype, "edgelist",
               "the type of input file (supports 'edgelist' and 'adjlist')");
 
 int main(int argc, char *argv[])
 {
-    std::string usage = "this program shuffle the input graph randomly";
+    std::string usage = "-filename <path to the input graph> "
+                        "[-filetype <edgelist|adjlist>] "
+                        "[-p <number of partitions>] "
+                        "[-memsize <memory budget in MB>]";
     google::SetUsageMessage(usage);
     google::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);

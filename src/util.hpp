@@ -11,6 +11,11 @@
 
 #define rep(i, n) for (int i = 0; i < (int)(n); ++i)
 
+DECLARE_int32(p);
+DECLARE_uint64(memsize);
+DECLARE_string(filename);
+DECLARE_string(filetype);
+
 typedef uint32_t vid_t;
 typedef std::pair<vid_t, vid_t> edge_t;
 

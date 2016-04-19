@@ -8,8 +8,6 @@
 #include "util.hpp"
 #include "shuffler.hpp"
 
-DEFINE_uint64(memsize, 4096, "memory size in megabytes");
-
 void Shuffler::init()
 {
     num_vertices = 0;
