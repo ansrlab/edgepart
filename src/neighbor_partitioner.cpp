@@ -1,5 +1,58 @@
 #include "neighbor_partitioner.hpp"
 
+NeighborPartitioner::NeighborPartitioner(std::string basefilename)
+    : basefilename(basefilename)
+{
+    LOG(INFO) << "initializing partitioner";
+
+    fin = open(binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
+    PCHECK(fin != -1) << "Error opening file for read";
+    struct stat fileInfo = {0};
+    PCHECK(fstat(fin, &fileInfo) != -1) << "Error getting the file size";
+    PCHECK(fileInfo.st_size != 0) << "Error: file is empty";
+    LOG(INFO) << "file size: " << fileInfo.st_size;
+
+    fin_map = (char *)mmap(0, fileInfo.st_size, PROT_READ, MAP_SHARED, fin, 0);
+    if (fin_map == MAP_FAILED) {
+        close(fin);
+        PLOG(FATAL) << "error mapping the file";
+    }
+
+    filesize = fileInfo.st_size;
+    fin_ptr = fin_map;
+    fin_end = fin_map + filesize;
+
+    num_vertices = *(vid_t *)fin_ptr;
+    fin_ptr += sizeof(vid_t);
+    num_edges = *(size_t *)fin_ptr;
+    fin_ptr += sizeof(size_t);
+
+    LOG(INFO) << "num_vertices: " << num_vertices
+              << ", num_edges: " << num_edges;
+
+    p = FLAGS_p;
+    average_degree = (double)num_edges * 2 / num_vertices;
+    assigned_edges = 0;
+    max_sample_size = num_vertices * 2;
+    local_average_degree = 2 * (double)max_sample_size / num_vertices;
+    sample_size = 0;
+    capacity = (double)num_edges * 1.05 / p + 1;
+    occupied.assign(p, 0);
+    adj_out.resize(num_vertices);
+    adj_in.resize(num_vertices);
+    rep (i, num_vertices) {
+        adj_out[i].reserve(local_average_degree);
+        adj_in[i].reserve(local_average_degree);
+    }
+    is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
+    is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
+
+    degrees.resize(num_vertices);
+    std::ifstream degree_file(degree_name(basefilename), std::ios::binary);
+    degree_file.read((char *)&degrees[0], num_vertices * sizeof(vid_t));
+    degree_file.close();
+};
+
 void NeighborPartitioner::read_more()
 {
     while (sample_size < max_sample_size && fin_ptr < fin_end) {
@@ -15,10 +68,13 @@ void NeighborPartitioner::read_more()
 
 void NeighborPartitioner::read_remaining()
 {
+    boost::dynamic_bitset<> &is_boundary = is_boundarys[p - 1];
+    boost::dynamic_bitset<> &is_core = is_cores[p - 1];
+
     rep (u, num_vertices)
         for (auto &v : adj_out[u]) {
-            is_boundarys[p - 1][u] = true;
-            is_boundarys[p - 1][v] = true;
+            is_boundary[u] = true;
+            is_boundary[v] = true;
             assign_edge(p - 1, u, v);
         }
 
@@ -26,18 +82,18 @@ void NeighborPartitioner::read_remaining()
         edge_t *e = (edge_t *)fin_ptr;
         fin_ptr += sizeof(edge_t);
         if (check_edge(e)) {
-            is_boundarys[p - 1][e->first] = true;
-            is_boundarys[p - 1][e->second] = true;
+            is_boundary[e->first] = true;
+            is_boundary[e->second] = true;
             assign_edge(p - 1, e->first, e->second);
         }
     }
 
     rep (i, num_vertices) {
-        if (is_boundarys[p - 1][i]) {
-            is_cores[p - 1][i] = true;
+        if (is_boundary[i]) {
+            is_core[i] = true;
             rep (j, p - 1)
                 if (is_cores[j][i]) {
-                    is_cores[p - 1][i] = false;
+                    is_core[i] = false;
                     break;
                 }
         }
