@@ -11,8 +11,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <boost/container/flat_set.hpp>
-
 #include "util.hpp"
 #include "min_heap.hpp"
 
@@ -104,22 +102,24 @@ class NeighborPartitioner
         }
 
         rep (direction, 2) {
-            adjlist_t &adj = direction ? adj_out : adj_in,
-                      &adj_r = direction ? adj_in : adj_out;
-            for (auto it = adj[vid].begin(); it != adj[vid].end();) {
-                if (is_core[*it]) {
+            std::vector<vid_t> &adj = direction ? adj_out[vid] : adj_in[vid];
+            adjlist_t &adj_r = direction ? adj_in : adj_out;
+            for (size_t i = 0; i < adj.size();) {
+                if (is_core[adj[i]]) {
                     sample_size--;
-                    assign_edge(bucket, direction ? vid : *it, direction ? *it : vid);
+                    assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
-                    it = adj[vid].erase(it);
-                } else if (is_boundary[*it]) {
+                    std::swap(adj[i], adj[adj.size() - 1]);
+                    adj.pop_back();
+                } else if (is_boundary[adj[i]]) {
                     sample_size--;
-                    assign_edge(bucket, direction ? vid : *it, direction ? *it : vid);
+                    assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
-                    min_heap.decrease_key(*it, erase(adj_r[*it], vid));
-                    it = adj[vid].erase(it);
+                    min_heap.decrease_key(adj[i], erase(adj_r[adj[i]], vid));
+                    std::swap(adj[i], adj[adj.size() - 1]);
+                    adj.pop_back();
                 } else
-                    it++;
+                    i++;
             }
         }
     }
@@ -190,6 +190,10 @@ class NeighborPartitioner
         num_mirrors.resize(p);
         adj_out.resize(num_vertices);
         adj_in.resize(num_vertices);
+        rep(i, num_vertices) {
+            adj_out[i].reserve(local_average_degree);
+            adj_in[i].reserve(local_average_degree);
+        }
         is_cores.assign(p, std::vector<bool>(num_vertices));
         is_boundarys.assign(p, std::vector<bool>(num_vertices));
 
