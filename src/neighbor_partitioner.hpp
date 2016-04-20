@@ -79,12 +79,12 @@ class NeighborPartitioner
         degrees[to]--;
     }
 
-    size_t erase(std::vector<vid_t> &neighbors, vid_t v)
+    size_t erase(std::vector<vid_t> &neighbors, const vid_t &v)
     {
         size_t count = 0;
         for (size_t i = 0; i < neighbors.size(); )
             if (neighbors[i] == v) {
-                std::swap(neighbors[i], neighbors[neighbors.size() - 1]);
+                std::swap(neighbors[i], neighbors.back());
                 neighbors.pop_back();
                 count++;
             } else
@@ -113,14 +113,14 @@ class NeighborPartitioner
                     sample_size--;
                     assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
-                    std::swap(adj[i], adj[adj.size() - 1]);
+                    std::swap(adj[i], adj.back());
                     adj.pop_back();
                 } else if (is_boundary[adj[i]] && occupied[bucket] < local_capacity) {
                     sample_size--;
                     assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
                     min_heap.decrease_key(adj[i], erase(adj_r[adj[i]], vid));
-                    std::swap(adj[i], adj[adj.size() - 1]);
+                    std::swap(adj[i], adj.back());
                     adj.pop_back();
                 } else
                     i++;
@@ -158,15 +158,14 @@ class NeighborPartitioner
                 is_cores[bucket][vid])) {
             vid = (vid + ++count) % num_vertices;
         }
-        if (count == num_vertices) {
-            DLOG(INFO) << "no free vertices";
+        if (count == num_vertices)
             return false;
-        }
         return true;
     }
 
     void read_more();
     void read_remaining();
+    size_t count_mirrors();
 
   public:
     NeighborPartitioner(std::string basefilename);

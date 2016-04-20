@@ -101,6 +101,14 @@ void NeighborPartitioner::read_remaining()
     }
 }
 
+size_t NeighborPartitioner::count_mirrors()
+{
+    size_t result = 0;
+    rep (i, p)
+        result += is_boundarys[i].count();
+    return result;
+}
+
 void NeighborPartitioner::split()
 {
     LOG(INFO) << "partition `" << basefilename << "'";
@@ -120,8 +128,11 @@ void NeighborPartitioner::split()
         while (occupied[bucket] < local_capacity) {
             vid_t d, vid;
             if (!min_heap.get_min(d, vid)) {
-                if (!get_free_vertex(vid))
+                if (!get_free_vertex(vid)) {
+                    LOG(INFO) << "partition " << bucket
+                              << " stop: no free vertices";
                     break;
+                }
                 d = adj_out[vid].size() + adj_in[vid].size();
             } else {
                 min_heap.remove(vid);
@@ -133,18 +144,17 @@ void NeighborPartitioner::split()
         min_heap.clear();
         compute_timer.stop();
     }
-    DLOG(INFO) << "last partition";
     bucket = p - 1;
+    DLOG(INFO) << "start partition " << bucket;
     read_timer.start();
     read_remaining();
     read_timer.stop();
+    LOG(INFO) << "expected edges in each partition: " << num_edges / p;
     rep (i, p)
         DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
     size_t max_occupied = *std::max_element(occupied.begin(), occupied.end());
     LOG(INFO) << "balance: " << (double)max_occupied / ((double)num_edges / p);
-    size_t total_mirrors = 0;
-    rep (i, p)
-        total_mirrors += is_boundarys[i].count();
+    size_t total_mirrors = count_mirrors();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
     LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
