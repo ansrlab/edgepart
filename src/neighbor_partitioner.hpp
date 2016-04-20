@@ -40,6 +40,10 @@ class NeighborPartitioner
     std::vector<vid_t> degrees;
     std::vector<boost::dynamic_bitset<>> is_cores, is_boundarys;
 
+    std::random_device rd;
+    std::mt19937 gen;
+    std::uniform_int_distribution<vid_t> dis;
+
     bool check_edge(const edge_t *e)
     {
         rep (i, bucket) {
@@ -141,6 +145,24 @@ class NeighborPartitioner
         for (auto& w : adj_in[vid])
             add_boundary(w);
         adj_in[vid].clear();
+    }
+
+    bool get_free_vertex(vid_t &vid)
+    {
+        vid = dis(gen);
+        int count = 0;
+        while (count < num_vertices &&
+               (adj_out[vid].size() + adj_in[vid].size() == 0 ||
+                adj_out[vid].size() + adj_in[vid].size() >
+                    2 * local_average_degree ||
+                is_cores[bucket][vid])) {
+            vid = (vid + ++count) % num_vertices;
+        }
+        if (count == num_vertices) {
+            DLOG(INFO) << "no free vertices";
+            return false;
+        }
+        return true;
     }
 
     void read_more();

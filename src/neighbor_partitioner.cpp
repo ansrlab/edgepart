@@ -1,7 +1,7 @@
 #include "neighbor_partitioner.hpp"
 
 NeighborPartitioner::NeighborPartitioner(std::string basefilename)
-    : basefilename(basefilename)
+    : basefilename(basefilename), gen(rd())
 {
     LOG(INFO) << "initializing partitioner";
 
@@ -46,6 +46,7 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     }
     is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
     is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
+    dis.param(std::uniform_int_distribution<vid_t>::param_type(0, num_vertices - 1));
 
     degrees.resize(num_vertices);
     std::ifstream degree_file(degree_name(basefilename), std::ios::binary);
@@ -105,10 +106,6 @@ void NeighborPartitioner::split()
     LOG(INFO) << "partition `" << basefilename << "'";
     LOG(INFO) << "number of partitions: " << p;
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<vid_t> dis(0, num_vertices - 1);
-
     Timer read_timer, compute_timer;
 
     min_heap.reserve(num_vertices);
@@ -123,19 +120,8 @@ void NeighborPartitioner::split()
         while (occupied[bucket] < local_capacity) {
             vid_t d, vid;
             if (!min_heap.get_min(d, vid)) {
-                vid = dis(gen);
-                int count = 0;
-                while (count < num_vertices &&
-                       (adj_out[vid].size() + adj_in[vid].size() == 0 ||
-                        adj_out[vid].size() + adj_in[vid].size() >
-                            2 * local_average_degree ||
-                        is_cores[bucket][vid])) {
-                    vid = (vid + ++count) % num_vertices;
-                }
-                if (count == num_vertices) {
-                    DLOG(INFO) << "not free vertices";
+                if (!get_free_vertex(vid))
                     break;
-                }
                 d = adj_out[vid].size() + adj_in[vid].size();
             } else {
                 min_heap.remove(vid);
