@@ -48,8 +48,8 @@ void Shuffler::finalize()
                 count++;
                 if (count == nchunks)
                     break;
-            }
-            fout.write((char *)&e, sizeof(edge_t));
+            } else
+                fout.write((char *)&e, sizeof(edge_t));
         }
     }
     rep (i, nchunks)
