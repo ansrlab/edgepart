@@ -115,7 +115,7 @@ class NeighborPartitioner
                     min_heap.decrease_key(vid);
                     std::swap(adj[i], adj[adj.size() - 1]);
                     adj.pop_back();
-                } else if (is_boundary[adj[i]]) {
+                } else if (is_boundary[adj[i]] && occupied[bucket] < local_capacity) {
                     sample_size--;
                     assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
