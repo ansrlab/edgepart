@@ -79,6 +79,18 @@ class NeighborPartitioner
         degrees[to]--;
     }
 
+    void erase_one(std::vector<vid_t> &neighbors, const vid_t &v)
+    {
+        for (size_t i = 0; i < neighbors.size(); )
+            if (neighbors[i] == v) {
+                std::swap(neighbors[i], neighbors.back());
+                neighbors.pop_back();
+                return;
+            } else
+                i++;
+        LOG(FATAL) << "reverse edge not found";
+    }
+
     size_t erase(std::vector<vid_t> &neighbors, const vid_t &v)
     {
         size_t count = 0;
@@ -119,7 +131,8 @@ class NeighborPartitioner
                     sample_size--;
                     assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
                     min_heap.decrease_key(vid);
-                    min_heap.decrease_key(adj[i], erase(adj_r[adj[i]], vid));
+                    erase_one(adj_r[adj[i]], vid);
+                    min_heap.decrease_key(adj[i]);
                     std::swap(adj[i], adj.back());
                     adj.pop_back();
                 } else
