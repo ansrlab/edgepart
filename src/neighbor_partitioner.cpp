@@ -159,13 +159,12 @@ void NeighborPartitioner::split()
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
     LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
     LOG(INFO) << "time used for partitioning: " << compute_timer.get_time();
-    LOG_IF(WARNING, assigned_edges != num_edges)
-        << "assigned_edges != num_edges: " << assigned_edges << " vs. "
-        << num_edges;
 
     if (munmap(fin_map, filesize) == -1) {
         close(fin);
         PLOG(FATAL) << "Error un-mmapping the file";
     }
     close(fin);
+
+    CHECK_EQ(assigned_edges, num_edges);
 }
