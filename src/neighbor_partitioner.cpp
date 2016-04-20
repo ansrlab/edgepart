@@ -101,6 +101,21 @@ void NeighborPartitioner::read_remaining()
     }
 }
 
+void NeighborPartitioner::clean_samples()
+{
+    rep (u, num_vertices)
+        for (size_t i = 0; i < adj_out[u].size();) {
+            edge_t e(u, adj_out[u][i]);
+            if (!check_edge(&e)) {
+                sample_size--;
+                erase_one(adj_in[adj_out[u][i]], u);
+                std::swap(adj_out[u][i], adj_out[u].back());
+                adj_out[u].pop_back();
+            } else
+                i++;
+        }
+}
+
 size_t NeighborPartitioner::count_mirrors()
 {
     size_t result = 0;
@@ -142,6 +157,7 @@ void NeighborPartitioner::split()
             occupy_vertex(vid, d);
         }
         min_heap.clear();
+        clean_samples();
         compute_timer.stop();
     }
     bucket = p - 1;

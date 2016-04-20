@@ -178,6 +178,7 @@ class NeighborPartitioner
 
     void read_more();
     void read_remaining();
+    void clean_samples();
     size_t count_mirrors();
 
   public:
