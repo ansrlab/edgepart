@@ -18,7 +18,8 @@
 class NeighborPartitioner
 {
   private:
-    typedef std::vector<std::vector<vid_t>> adjlist_t;
+    typedef std::vector<vid_t> adjlist_t;
+    typedef std::vector<adjlist_t> graph_t;
 
     std::string basefilename;
 
@@ -34,7 +35,7 @@ class NeighborPartitioner
     off_t filesize;
     char *fin_map, *fin_ptr, *fin_end;
 
-    adjlist_t adj_out, adj_in;
+    graph_t adj_out, adj_in;
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
     std::vector<vid_t> degrees;
@@ -47,7 +48,8 @@ class NeighborPartitioner
     bool check_edge(const edge_t *e)
     {
         rep (i, bucket) {
-            if (is_boundarys[i][e->first] && is_boundarys[i][e->second] &&
+            auto &is_boundary = is_boundarys[i];
+            if (is_boundary[e->first] && is_boundary[e->second] &&
                 occupied[i] < capacity) {
                 assign_edge(i, e->first, e->second);
                 return false;
@@ -55,14 +57,15 @@ class NeighborPartitioner
         }
 
         rep (i, bucket) {
-            if ((is_cores[i][e->first] || is_cores[i][e->second]) &&
+            auto &is_core = is_cores[i], &is_boundary = is_boundarys[i];
+            if ((is_core[e->first] || is_core[e->second]) &&
                 occupied[i] < capacity) {
-                if (is_cores[i][e->first] && degrees[e->second] > average_degree)
+                if (is_core[e->first] && degrees[e->second] > average_degree)
                     continue;
-                if (is_cores[i][e->second] && degrees[e->first] > average_degree)
+                if (is_core[e->second] && degrees[e->first] > average_degree)
                     continue;
-                is_boundarys[i][e->first] = true;
-                is_boundarys[i][e->second] = true;
+                is_boundary[e->first] = true;
+                is_boundary[e->second] = true;
                 assign_edge(i, e->first, e->second);
                 return false;
             }
@@ -79,7 +82,7 @@ class NeighborPartitioner
         degrees[to]--;
     }
 
-    void erase_one(std::vector<vid_t> &neighbors, const vid_t &v)
+    void erase_one(adjlist_t &neighbors, const vid_t &v)
     {
         for (size_t i = 0; i < neighbors.size(); )
             if (neighbors[i] == v) {
@@ -91,7 +94,7 @@ class NeighborPartitioner
         LOG(FATAL) << "reverse edge not found";
     }
 
-    size_t erase(std::vector<vid_t> &neighbors, const vid_t &v)
+    size_t erase(adjlist_t &neighbors, const vid_t &v)
     {
         size_t count = 0;
         for (size_t i = 0; i < neighbors.size(); )
@@ -106,8 +109,7 @@ class NeighborPartitioner
 
     void add_boundary(vid_t vid)
     {
-        boost::dynamic_bitset<> &is_core = is_cores[bucket];
-        boost::dynamic_bitset<> &is_boundary = is_boundarys[bucket];
+        auto &is_core = is_cores[bucket], &is_boundary = is_boundarys[bucket];
 
         if (is_boundary[vid])
             return;
@@ -118,23 +120,24 @@ class NeighborPartitioner
         }
 
         rep (direction, 2) {
-            std::vector<vid_t> &adj = direction ? adj_out[vid] : adj_in[vid];
-            adjlist_t &adj_r = direction ? adj_in : adj_out;
-            for (size_t i = 0; i < adj.size();) {
-                if (is_core[adj[i]]) {
+            adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
+            graph_t &adj_r = direction ? adj_in : adj_out;
+            for (size_t i = 0; i < neighbors.size();) {
+                vid_t &u = neighbors[i];
+                if (is_core[u]) {
                     sample_size--;
-                    assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
+                    assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
-                    std::swap(adj[i], adj.back());
-                    adj.pop_back();
-                } else if (is_boundary[adj[i]] && occupied[bucket] < local_capacity) {
+                    std::swap(u, neighbors.back());
+                    neighbors.pop_back();
+                } else if (is_boundary[u] && occupied[bucket] < local_capacity) {
                     sample_size--;
-                    assign_edge(bucket, direction ? vid : adj[i], direction ? adj[i] : vid);
+                    assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
-                    erase_one(adj_r[adj[i]], vid);
-                    min_heap.decrease_key(adj[i]);
-                    std::swap(adj[i], adj.back());
-                    adj.pop_back();
+                    erase_one(adj_r[u], vid);
+                    min_heap.decrease_key(u);
+                    std::swap(u, neighbors.back());
+                    neighbors.pop_back();
                 } else
                     i++;
             }

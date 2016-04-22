@@ -69,8 +69,7 @@ void NeighborPartitioner::read_more()
 
 void NeighborPartitioner::read_remaining()
 {
-    boost::dynamic_bitset<> &is_boundary = is_boundarys[p - 1];
-    boost::dynamic_bitset<> &is_core = is_cores[p - 1];
+    auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
 
     rep (u, num_vertices)
         for (auto &v : adj_out[u]) {
@@ -103,17 +102,20 @@ void NeighborPartitioner::read_remaining()
 
 void NeighborPartitioner::clean_samples()
 {
-    rep (u, num_vertices)
-        for (size_t i = 0; i < adj_out[u].size();) {
-            edge_t e(u, adj_out[u][i]);
+    rep (u, num_vertices) {
+        adjlist_t &neighbors = adj_out[u];
+        for (size_t i = 0; i < neighbors.size();) {
+            vid_t &v = neighbors[i];
+            edge_t e(u, v);
             if (!check_edge(&e)) {
                 sample_size--;
-                erase_one(adj_in[adj_out[u][i]], u);
-                std::swap(adj_out[u][i], adj_out[u].back());
-                adj_out[u].pop_back();
+                erase_one(adj_in[v], u);
+                std::swap(v, neighbors.back());
+                neighbors.pop_back();
             } else
                 i++;
         }
+    }
 }
 
 size_t NeighborPartitioner::count_mirrors()
