@@ -166,7 +166,7 @@ class NeighborPartitioner
     bool get_free_vertex(vid_t &vid)
     {
         vid = dis(gen);
-        int count = 0;
+        vid_t count = 0;
         while (count < num_vertices &&
                (adj_out[vid].size() + adj_in[vid].size() == 0 ||
                 adj_out[vid].size() + adj_in[vid].size() >
