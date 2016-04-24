@@ -64,6 +64,8 @@ flags = [
 '-I',
 './ClangCompleter',
 '-I',
+'/usr/include',
+'-I',
 '/usr/lib/gcc/x86_64-linux-gnu/5/include',
 '-I',
 './threadpool11/include',
