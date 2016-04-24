@@ -39,6 +39,7 @@ class NeighborPartitioner
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
     std::vector<vid_t> degrees;
+    std::vector<int> master;
     std::vector<boost::dynamic_bitset<>> is_cores, is_boundarys;
 
     std::random_device rd;
@@ -182,6 +183,7 @@ class NeighborPartitioner
     void read_more();
     void read_remaining();
     void clean_samples();
+    void assign_master();
     size_t count_mirrors();
 
   public:

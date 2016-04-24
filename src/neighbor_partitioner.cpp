@@ -46,6 +46,7 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     }
     is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
     is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
+    master.assign(num_vertices, -1);
     dis.param(std::uniform_int_distribution<vid_t>::param_type(0, num_vertices - 1));
 
     degrees.resize(num_vertices);
@@ -118,6 +119,41 @@ void NeighborPartitioner::clean_samples()
     }
 }
 
+void NeighborPartitioner::assign_master()
+{
+    std::vector<int> count_master(p, 0);
+    std::vector<vid_t> quota(p, num_vertices);
+    long long sum = p * num_vertices;
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::vector<size_t> pos(p);
+    rep (b, p)
+        pos[b] = is_boundarys[b].find_first();
+    vid_t count = 0;
+    while (count < num_vertices) {
+        long long r = distribution(gen) * sum;
+        int k;
+        for (k = 0; k < p; k++) {
+            if (r < quota[k])
+                break;
+            r -= quota[k];
+        }
+        while (pos[k] < boost::dynamic_bitset<>::npos && master[pos[k]] != -1)
+            pos[k] = is_boundarys[k].find_next(pos[k]);
+        if (pos[k] < boost::dynamic_bitset<>::npos) {
+            count++;
+            master[pos[k]] = k;
+            count_master[k]++;
+            pos[k] = is_boundarys[k].find_next(pos[k]);
+            quota[k]--;
+            sum--;
+        }
+    }
+    int max_masters =
+        *std::max_element(count_master.begin(), count_master.end());
+    LOG(INFO) << "master balance: "
+              << (double)max_masters / ((double)num_vertices / p);
+}
+
 size_t NeighborPartitioner::count_mirrors()
 {
     size_t result = 0;
@@ -167,6 +203,7 @@ void NeighborPartitioner::split()
     read_timer.start();
     read_remaining();
     read_timer.stop();
+    assign_master();
     LOG(INFO) << "expected edges in each partition: " << num_edges / p;
     rep (i, p)
         DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
