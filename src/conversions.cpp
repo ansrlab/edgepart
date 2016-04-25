@@ -26,8 +26,8 @@ void convert_edgelist(std::string inputfile, Shuffler &shuffler)
     while (fgets(s, 1024, inf) != NULL) {
         linenum++;
         if (linenum % 10000000 == 0) {
-            DLOG(INFO) << "Read " << linenum << " lines, "
-                       << bytesread / 1024 / 1024. << " MB" << std::endl;
+            LOG(INFO) << "Read " << linenum << " lines, "
+                      << bytesread / 1024 / 1024. << " MB" << std::endl;
         }
         FIXLINE(s);
         bytesread += strlen(s);
@@ -60,7 +60,7 @@ void convert_edgelist(std::string inputfile, Shuffler &shuffler)
     fclose(inf);
 }
 
-void convert_adjlist(std::string inputfile, Shuffler shuffler)
+void convert_adjlist(std::string inputfile, Shuffler &shuffler)
 {
     FILE *inf = fopen(inputfile.c_str(), "r");
     if (inf == NULL) {
@@ -81,8 +81,8 @@ void convert_adjlist(std::string inputfile, Shuffler shuffler)
     while (fgets(s, maxlen, inf) != NULL) {
         linenum++;
         if (bytesread - lastlog >= 500000000) {
-            DLOG(INFO) << "Read " << linenum << " lines, "
-                       << bytesread / 1024 / 1024. << " MB" << std::endl;
+            LOG(INFO) << "Read " << linenum << " lines, "
+                      << bytesread / 1024 / 1024. << " MB" << std::endl;
             lastlog = bytesread;
         }
         FIXLINE(s);
