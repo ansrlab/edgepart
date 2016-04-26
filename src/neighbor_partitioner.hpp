@@ -15,19 +15,101 @@
 #include "util.hpp"
 #include "min_heap.hpp"
 
+class adjlist_t
+{
+  private:
+    vid_t *start;
+    vid_t len;
+
+  public:
+    adjlist_t() : start(NULL), len(0) {}
+    adjlist_t(vid_t *start, vid_t len) : start(start), len(len) {}
+    vid_t *begin() { return start; }
+    vid_t *end() { return start + len; }
+    void increment() { len++; }
+    size_t size() const { return len; }
+    vid_t &operator[](size_t idx) { return start[idx]; };
+    const vid_t &operator[](size_t idx) const { return start[idx]; };
+    vid_t &back() { return start[len - 1]; };
+    const vid_t &back() const { return start[len - 1]; };
+    void pop_back() { len--; }
+    void clear() { len = 0; }
+};
+
+class graph_t
+{
+  private:
+    vid_t num_vertices;
+    std::vector<vid_t> neighbors;
+    std::vector<adjlist_t> vdata;
+
+  public:
+    void resize(vid_t _num_vertices)
+    {
+        num_vertices = _num_vertices;
+        vdata.resize(num_vertices);
+    }
+
+    size_t num_edges() const { return neighbors.size(); }
+
+    void build(std::vector<edge_t> &edges)
+    {
+        repv (v, num_vertices)
+            vdata[v].clear();
+        std::sort(edges.begin(), edges.end(),
+                  [](const edge_t &a, const edge_t &b) {
+                      return a.first < b.first;
+                  });
+        neighbors.resize(edges.size());
+        vid_t last_v = -1;
+        vid_t *start_ptr = &neighbors[0];
+        for (size_t i = 0; i < edges.size(); i++) {
+            neighbors[i] = edges[i].second;
+            if (edges[i].first == last_v) {
+                vdata[last_v].increment();
+            } else {
+                vdata[edges[i].first] = adjlist_t(start_ptr + i, 1);
+                last_v = edges[i].first;
+            }
+        }
+    }
+
+    void build_reverse(std::vector<edge_t> &edges)
+    {
+        repv (v, num_vertices)
+            vdata[v].clear();
+        std::sort(edges.begin(), edges.end(),
+                  [](const edge_t &a, const edge_t &b) {
+                      return a.second < b.second;
+                  });
+        neighbors.resize(edges.size());
+        vid_t last_v = -1;
+        vid_t *start_ptr = &neighbors[0];
+        for (size_t i = 0; i < edges.size(); i++) {
+            neighbors[i] = edges[i].first;
+            if (edges[i].second == last_v) {
+                vdata[last_v].increment();
+            } else {
+                vdata[edges[i].second] = adjlist_t(start_ptr + i, 1);
+                last_v = edges[i].second;
+            }
+        }
+    }
+
+    adjlist_t &operator[](size_t idx) { return vdata[idx]; };
+    const adjlist_t &operator[](size_t idx) const { return vdata[idx]; };
+};
+
 class NeighborPartitioner
 {
   private:
-    typedef std::vector<vid_t> adjlist_t;
-    typedef std::vector<adjlist_t> graph_t;
-
     std::string basefilename;
 
     vid_t num_vertices;
     size_t num_edges, assigned_edges;
     int p, bucket;
     double average_degree, local_average_degree;
-    size_t sample_size, max_sample_size;
+    size_t max_sample_size;
     size_t capacity, local_capacity;
 
     // use mmap for file input
@@ -35,6 +117,7 @@ class NeighborPartitioner
     off_t filesize;
     char *fin_map, *fin_ptr, *fin_end;
 
+    std::vector<edge_t> sample_edges;
     graph_t adj_out, adj_in;
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
@@ -126,13 +209,11 @@ class NeighborPartitioner
             for (size_t i = 0; i < neighbors.size();) {
                 vid_t &u = neighbors[i];
                 if (is_core[u]) {
-                    sample_size--;
                     assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
                     std::swap(u, neighbors.back());
                     neighbors.pop_back();
                 } else if (is_boundary[u] && occupied[bucket] < local_capacity) {
-                    sample_size--;
                     assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
                     erase_one(adj_r[u], vid);
@@ -155,11 +236,11 @@ class NeighborPartitioner
 
         add_boundary(vid);
 
-        for (auto& w : adj_out[vid])
+        for (auto &w : adj_out[vid])
             add_boundary(w);
         adj_out[vid].clear();
 
-        for (auto& w : adj_in[vid])
+        for (auto &w : adj_in[vid])
             add_boundary(w);
         adj_in[vid].clear();
     }

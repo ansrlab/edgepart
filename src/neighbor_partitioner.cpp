@@ -35,15 +35,10 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     assigned_edges = 0;
     max_sample_size = num_vertices * 2;
     local_average_degree = 2 * (double)max_sample_size / num_vertices;
-    sample_size = 0;
     capacity = (double)num_edges * 1.05 / p + 1;
     occupied.assign(p, 0);
     adj_out.resize(num_vertices);
     adj_in.resize(num_vertices);
-    rep (i, num_vertices) {
-        adj_out[i].reserve(local_average_degree);
-        adj_in[i].reserve(local_average_degree);
-    }
     is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
     is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
     master.assign(num_vertices, -1);
@@ -57,27 +52,30 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
 
 void NeighborPartitioner::read_more()
 {
-    while (sample_size < max_sample_size && fin_ptr < fin_end) {
+    while (sample_edges.size() < max_sample_size && fin_ptr < fin_end) {
         edge_t *e = (edge_t *)fin_ptr;
         fin_ptr += sizeof(edge_t);
         if (check_edge(e)) {
-            sample_size++;
-            adj_out[e->first].push_back(e->second);
-            adj_in[e->second].push_back(e->first);
+            sample_edges.push_back(*e);
         }
     }
+
+    adj_out.build(sample_edges);
+
+    adj_in.build_reverse(sample_edges);
+
+    sample_edges.clear();
 }
 
 void NeighborPartitioner::read_remaining()
 {
     auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
 
-    rep (u, num_vertices)
-        for (auto &v : adj_out[u]) {
-            is_boundary[u] = true;
-            is_boundary[v] = true;
-            assign_edge(p - 1, u, v);
-        }
+    for (auto &e : sample_edges) {
+        is_boundary[e.first] = true;
+        is_boundary[e.second] = true;
+        assign_edge(p - 1, e.first, e.second);
+    }
 
     while (fin_ptr < fin_end) {
         edge_t *e = (edge_t *)fin_ptr;
@@ -89,7 +87,7 @@ void NeighborPartitioner::read_remaining()
         }
     }
 
-    rep (i, num_vertices) {
+    repv (i, num_vertices) {
         if (is_boundary[i]) {
             is_core[i] = true;
             rep (j, p - 1)
@@ -103,18 +101,12 @@ void NeighborPartitioner::read_remaining()
 
 void NeighborPartitioner::clean_samples()
 {
-    rep (u, num_vertices) {
+    repv (u, num_vertices) {
         adjlist_t &neighbors = adj_out[u];
-        for (size_t i = 0; i < neighbors.size();) {
-            vid_t &v = neighbors[i];
-            edge_t e(u, v);
-            if (!check_edge(&e)) {
-                sample_size--;
-                erase_one(adj_in[v], u);
-                std::swap(v, neighbors.back());
-                neighbors.pop_back();
-            } else
-                i++;
+        for (size_t i = 0; i < neighbors.size(); i++) {
+            edge_t e(u, neighbors[i]);
+            if (check_edge(&e))
+                sample_edges.push_back(e);
         }
     }
 }
@@ -170,14 +162,16 @@ void NeighborPartitioner::split()
     Timer read_timer, compute_timer;
 
     min_heap.reserve(num_vertices);
+    sample_edges.reserve(max_sample_size);
+    LOG(INFO) << "partitioning...";
     for (bucket = 0; bucket < p - 1; bucket++) {
-        DLOG(INFO) << "start partition " << bucket;
+        std::cerr << bucket << ", ";
         read_timer.start();
         read_more();
         read_timer.stop();
-        DLOG(INFO) << "sample size: " << sample_size;
+        DLOG(INFO) << "sample size: " << adj_out.num_edges();
         compute_timer.start();
-        local_capacity = sample_size / (p - bucket);
+        local_capacity = adj_out.num_edges() / (p - bucket);
         while (occupied[bucket] < local_capacity) {
             vid_t d, vid;
             if (!min_heap.get_min(d, vid)) {
@@ -199,7 +193,7 @@ void NeighborPartitioner::split()
         compute_timer.stop();
     }
     bucket = p - 1;
-    DLOG(INFO) << "start partition " << bucket;
+    std::cerr << bucket << std::endl;
     read_timer.start();
     read_remaining();
     read_timer.stop();
