@@ -18,20 +18,20 @@
 class adjlist_t
 {
   private:
-    vid_t *start;
+    vid_t *adj;
     vid_t len;
 
   public:
-    adjlist_t() : start(NULL), len(0) {}
-    adjlist_t(vid_t *start, vid_t len) : start(start), len(len) {}
-    vid_t *begin() { return start; }
-    vid_t *end() { return start + len; }
+    adjlist_t() : adj(NULL), len(0) {}
+    adjlist_t(vid_t *adj, vid_t len) : adj(adj), len(len) {}
+    vid_t *begin() { return adj; }
+    vid_t *end() { return adj + len; }
     void increment() { len++; }
     size_t size() const { return len; }
-    vid_t &operator[](size_t idx) { return start[idx]; };
-    const vid_t &operator[](size_t idx) const { return start[idx]; };
-    vid_t &back() { return start[len - 1]; };
-    const vid_t &back() const { return start[len - 1]; };
+    vid_t &operator[](size_t idx) { return adj[idx]; };
+    const vid_t &operator[](size_t idx) const { return adj[idx]; };
+    vid_t &back() { return adj[len - 1]; };
+    const vid_t &back() const { return adj[len - 1]; };
     void pop_back() { len--; }
     void clear() { len = 0; }
 };
