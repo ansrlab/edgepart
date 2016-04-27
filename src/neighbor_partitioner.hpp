@@ -102,7 +102,7 @@ class graph_t
 class NeighborPartitioner
 {
   private:
-    const size_t BUFFER_SIZE = 8 * 1024 * 1024 / sizeof(edge_t);
+    const size_t BUFFER_SIZE = 64 * 1024 / sizeof(edge_t);
     std::string basefilename;
 
     vid_t num_vertices;
