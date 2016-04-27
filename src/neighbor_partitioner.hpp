@@ -10,10 +10,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <boost/dynamic_bitset.hpp>
-
 #include "util.hpp"
 #include "min_heap.hpp"
+#include "dense_bitset.hpp"
 
 class adjlist_t
 {
@@ -103,6 +102,7 @@ class graph_t
 class NeighborPartitioner
 {
   private:
+    const size_t BUFFER_SIZE = 8 * 1024 * 1024 / sizeof(edge_t);
     std::string basefilename;
 
     vid_t num_vertices;
@@ -122,40 +122,39 @@ class NeighborPartitioner
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
     std::vector<vid_t> degrees;
-    std::vector<int> master;
-    std::vector<boost::dynamic_bitset<>> is_cores, is_boundarys;
+    std::vector<int8_t> master;
+    std::vector<dense_bitset> is_cores, is_boundarys;
+    std::vector<int8_t> results;
 
     std::random_device rd;
     std::mt19937 gen;
     std::uniform_int_distribution<vid_t> dis;
 
-    bool check_edge(const edge_t *e)
+    int check_edge(const edge_t *e)
     {
         rep (i, bucket) {
             auto &is_boundary = is_boundarys[i];
-            if (is_boundary[e->first] && is_boundary[e->second] &&
+            if (is_boundary.get(e->first) && is_boundary.get(e->second) &&
                 occupied[i] < capacity) {
-                assign_edge(i, e->first, e->second);
-                return false;
+                return i;
             }
         }
 
         rep (i, bucket) {
             auto &is_core = is_cores[i], &is_boundary = is_boundarys[i];
-            if ((is_core[e->first] || is_core[e->second]) &&
+            if ((is_core.get(e->first) || is_core.get(e->second)) &&
                 occupied[i] < capacity) {
-                if (is_core[e->first] && degrees[e->second] > average_degree)
+                if (is_core.get(e->first) && degrees[e->second] > average_degree)
                     continue;
-                if (is_core[e->second] && degrees[e->first] > average_degree)
+                if (is_core.get(e->second) && degrees[e->first] > average_degree)
                     continue;
-                is_boundary[e->first] = true;
-                is_boundary[e->second] = true;
-                assign_edge(i, e->first, e->second);
-                return false;
+                is_boundary.set_bit(e->first);
+                is_boundary.set_bit(e->second);
+                return i;
             }
         }
 
-        return true;
+        return p;
     }
 
     void assign_edge(int bucket, vid_t from, vid_t to)
@@ -195,11 +194,11 @@ class NeighborPartitioner
     {
         auto &is_core = is_cores[bucket], &is_boundary = is_boundarys[bucket];
 
-        if (is_boundary[vid])
+        if (is_boundary.get(vid))
             return;
-        is_boundary[vid] = true;
+        is_boundary.set_bit_unsync(vid);
 
-        if (!is_core[vid]) {
+        if (!is_core.get(vid)) {
             min_heap.insert(adj_out[vid].size() + adj_in[vid].size(), vid);
         }
 
@@ -208,12 +207,12 @@ class NeighborPartitioner
             graph_t &adj_r = direction ? adj_in : adj_out;
             for (size_t i = 0; i < neighbors.size();) {
                 vid_t &u = neighbors[i];
-                if (is_core[u]) {
+                if (is_core.get(u)) {
                     assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
                     std::swap(u, neighbors.back());
                     neighbors.pop_back();
-                } else if (is_boundary[u] && occupied[bucket] < local_capacity) {
+                } else if (is_boundary.get(u) && occupied[bucket] < local_capacity) {
                     assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
                     erase_one(adj_r[u], vid);
@@ -228,8 +227,8 @@ class NeighborPartitioner
 
     void occupy_vertex(vid_t vid, vid_t d)
     {
-        CHECK(!is_cores[bucket][vid]) << "add " << vid << " to core again";
-        is_cores[bucket][vid] = true;
+        CHECK(!is_cores[bucket].get(vid)) << "add " << vid << " to core again";
+        is_cores[bucket].set_bit_unsync(vid);
 
         if (d == 0)
             return;
@@ -253,7 +252,7 @@ class NeighborPartitioner
                (adj_out[vid].size() + adj_in[vid].size() == 0 ||
                 adj_out[vid].size() + adj_in[vid].size() >
                     2 * local_average_degree ||
-                is_cores[bucket][vid])) {
+                is_cores[bucket].get(vid))) {
             vid = (vid + ++count) % num_vertices;
         }
         if (count == num_vertices)

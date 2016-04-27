@@ -39,8 +39,8 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     occupied.assign(p, 0);
     adj_out.resize(num_vertices);
     adj_in.resize(num_vertices);
-    is_cores.assign(p, boost::dynamic_bitset<>(num_vertices));
-    is_boundarys.assign(p, boost::dynamic_bitset<>(num_vertices));
+    is_cores.assign(p, dense_bitset(num_vertices));
+    is_boundarys.assign(p, dense_bitset(num_vertices));
     master.assign(num_vertices, -1);
     dis.param(std::uniform_int_distribution<vid_t>::param_type(0, num_vertices - 1));
 
@@ -53,11 +53,22 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
 void NeighborPartitioner::read_more()
 {
     while (sample_edges.size() < max_sample_size && fin_ptr < fin_end) {
-        edge_t *e = (edge_t *)fin_ptr;
-        fin_ptr += sizeof(edge_t);
-        if (check_edge(e)) {
-            sample_edges.push_back(*e);
+        edge_t *fin_buffer_end = std::min((edge_t *)fin_ptr + BUFFER_SIZE, (edge_t *)fin_end);
+        size_t n = fin_buffer_end - (edge_t *)fin_ptr;
+        results.resize(n);
+
+#pragma omp parallel for
+        for (size_t i = 0; i < n; i++)
+            results[i] = check_edge((edge_t *)fin_ptr + i);
+
+        for (size_t i = 0; i < n; i++) {
+            edge_t *e = (edge_t *)fin_ptr + i;
+            if (results[i] == p)
+                sample_edges.push_back(*e);
+            else
+                assign_edge(results[i], e->first, e->second);
         }
+        fin_ptr = (char *)fin_buffer_end;
     }
 
     adj_out.build(sample_edges);
@@ -72,27 +83,38 @@ void NeighborPartitioner::read_remaining()
     auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
 
     for (auto &e : sample_edges) {
-        is_boundary[e.first] = true;
-        is_boundary[e.second] = true;
+        is_boundary.set_bit_unsync(e.first);
+        is_boundary.set_bit_unsync(e.second);
         assign_edge(p - 1, e.first, e.second);
     }
 
     while (fin_ptr < fin_end) {
-        edge_t *e = (edge_t *)fin_ptr;
-        fin_ptr += sizeof(edge_t);
-        if (check_edge(e)) {
-            is_boundary[e->first] = true;
-            is_boundary[e->second] = true;
-            assign_edge(p - 1, e->first, e->second);
+        edge_t *fin_buffer_end = std::min((edge_t *)fin_ptr + BUFFER_SIZE, (edge_t *)fin_end);
+        size_t n = fin_buffer_end - (edge_t *)fin_ptr;
+        results.resize(n);
+
+#pragma omp parallel for
+        for (size_t i = 0; i < n; i++)
+            results[i] = check_edge((edge_t *)fin_ptr + i);
+
+        for (size_t i = 0; i < n; i++) {
+            edge_t *e = (edge_t *)fin_ptr + i;
+            if (results[i] == p) {
+                is_boundary.set_bit_unsync(e->first);
+                is_boundary.set_bit_unsync(e->second);
+                assign_edge(p - 1, e->first, e->second);
+            } else
+                assign_edge(results[i], e->first, e->second);
         }
+        fin_ptr = (char *)fin_buffer_end;
     }
 
     repv (i, num_vertices) {
-        if (is_boundary[i]) {
-            is_core[i] = true;
+        if (is_boundary.get(i)) {
+            is_core.set_bit_unsync(i);
             rep (j, p - 1)
-                if (is_cores[j][i]) {
-                    is_core[i] = false;
+                if (is_cores[j].get(i)) {
+                    is_core.set_unsync(i, false);
                     break;
                 }
         }
@@ -101,25 +123,36 @@ void NeighborPartitioner::read_remaining()
 
 void NeighborPartitioner::clean_samples()
 {
-    repv (u, num_vertices) {
-        adjlist_t &neighbors = adj_out[u];
-        for (size_t i = 0; i < neighbors.size(); i++) {
-            edge_t e(u, neighbors[i]);
-            if (check_edge(&e))
-                sample_edges.push_back(e);
-        }
-    }
+    repv (u, num_vertices)
+        for (auto &v : adj_out[u])
+            sample_edges.emplace_back(u, v);
+
+    results.resize(sample_edges.size());
+
+#pragma omp parallel for
+    for (size_t i = 0; i < sample_edges.size(); i++)
+        results[i] = check_edge(&sample_edges[i]);
+
+    for (size_t i = 0; i < sample_edges.size();)
+        if (results[i] < p) {
+            assign_edge(results[i], sample_edges[i].first, sample_edges[i].second);
+            std::swap(results[i], results.back());
+            results.pop_back();
+            std::swap(sample_edges[i], sample_edges.back());
+            sample_edges.pop_back();
+        } else
+            i++;
 }
 
 void NeighborPartitioner::assign_master()
 {
-    std::vector<int> count_master(p, 0);
+    std::vector<vid_t> count_master(p, 0);
     std::vector<vid_t> quota(p, num_vertices);
     long long sum = p * num_vertices;
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
-    std::vector<size_t> pos(p);
+    std::vector<dense_bitset::iterator> pos(p);
     rep (b, p)
-        pos[b] = is_boundarys[b].find_first();
+        pos[b] = is_boundarys[b].begin();
     vid_t count = 0;
     while (count < num_vertices) {
         long long r = distribution(gen) * sum;
@@ -129,13 +162,12 @@ void NeighborPartitioner::assign_master()
                 break;
             r -= quota[k];
         }
-        while (pos[k] < boost::dynamic_bitset<>::npos && master[pos[k]] != -1)
-            pos[k] = is_boundarys[k].find_next(pos[k]);
-        if (pos[k] < boost::dynamic_bitset<>::npos) {
+        while (pos[k] != is_boundarys[k].end() && master[*pos[k]] != -1)
+            pos[k]++;
+        if (pos[k] != is_boundarys[k].end()) {
             count++;
-            master[pos[k]] = k;
+            master[*pos[k]] = k;
             count_master[k]++;
-            pos[k] = is_boundarys[k].find_next(pos[k]);
             quota[k]--;
             sum--;
         }
@@ -150,7 +182,7 @@ size_t NeighborPartitioner::count_mirrors()
 {
     size_t result = 0;
     rep (i, p)
-        result += is_boundarys[i].count();
+        result += is_boundarys[i].popcount();
     return result;
 }
 
