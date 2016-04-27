@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <parallel/algorithm>
 
 #include "util.hpp"
 #include "min_heap.hpp"
@@ -55,10 +56,10 @@ class graph_t
     {
         repv (v, num_vertices)
             vdata[v].clear();
-        std::sort(edges.begin(), edges.end(),
-                  [](const edge_t &a, const edge_t &b) {
-                      return a.first < b.first;
-                  });
+        __gnu_parallel::sort(edges.begin(), edges.end(),
+                             [](const edge_t &a, const edge_t &b) {
+                                 return a.first < b.first;
+                             });
         neighbors.resize(edges.size());
         vid_t last_v = -1;
         vid_t *start_ptr = &neighbors[0];
@@ -77,10 +78,10 @@ class graph_t
     {
         repv (v, num_vertices)
             vdata[v].clear();
-        std::sort(edges.begin(), edges.end(),
-                  [](const edge_t &a, const edge_t &b) {
-                      return a.second < b.second;
-                  });
+        __gnu_parallel::sort(edges.begin(), edges.end(),
+                             [](const edge_t &a, const edge_t &b) {
+                                 return a.second < b.second;
+                             });
         neighbors.resize(edges.size());
         vid_t last_v = -1;
         vid_t *start_ptr = &neighbors[0];
