@@ -1,7 +1,7 @@
 #include "neighbor_partitioner.hpp"
 
 NeighborPartitioner::NeighborPartitioner(std::string basefilename)
-    : basefilename(basefilename), gen(rd())
+    : basefilename(basefilename), rd(), gen(rd()), writer(basefilename)
 {
     LOG(INFO) << "initializing partitioner";
 
@@ -167,6 +167,7 @@ void NeighborPartitioner::assign_master()
         if (pos[k] != is_boundarys[k].end()) {
             count++;
             master[*pos[k]] = k;
+            writer.save_vertex(*pos[k], k);
             count_master[k]++;
             quota[k]--;
             sum--;

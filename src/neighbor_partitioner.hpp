@@ -14,6 +14,7 @@
 #include "util.hpp"
 #include "min_heap.hpp"
 #include "dense_bitset.hpp"
+#include "edgepart.hpp"
 
 class adjlist_t
 {
@@ -131,6 +132,8 @@ class NeighborPartitioner
     std::mt19937 gen;
     std::uniform_int_distribution<vid_t> dis;
 
+    edgepart_writer<vid_t, uint16_t> writer;
+
     int check_edge(const edge_t *e)
     {
         rep (i, bucket) {
@@ -160,6 +163,7 @@ class NeighborPartitioner
 
     void assign_edge(int bucket, vid_t from, vid_t to)
     {
+        writer.save_edge(from, to, bucket);
         assigned_edges++;
         occupied[bucket]++;
         degrees[from]--;

@@ -39,6 +39,13 @@ inline std::string degree_name(const std::string &basefilename)
     return ss.str();
 }
 
+inline std::string partitioned_name(const std::string &basefilename)
+{
+    std::stringstream ss;
+    ss << basefilename << ".edgepart";
+    return ss.str();
+}
+
 inline bool is_exists(const std::string &name)
 {
     struct stat buffer;
