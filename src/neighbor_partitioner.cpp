@@ -33,7 +33,8 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     p = FLAGS_p;
     average_degree = (double)num_edges * 2 / num_vertices;
     assigned_edges = 0;
-    max_sample_size = num_vertices * 2;
+    LOG(INFO) << "sample_ratio: " << FLAGS_sample_ratio;
+    max_sample_size = num_vertices * FLAGS_sample_ratio;
     local_average_degree = 2 * (double)max_sample_size / num_vertices;
     capacity = (double)num_edges * 1.05 / p + 1;
     occupied.assign(p, 0);

@@ -17,6 +17,7 @@ DECLARE_int32(p);
 DECLARE_uint64(memsize);
 DECLARE_string(filename);
 DECLARE_string(filetype);
+DECLARE_double(sample_ratio);
 
 typedef uint32_t vid_t;
 typedef std::pair<vid_t, vid_t> edge_t;
