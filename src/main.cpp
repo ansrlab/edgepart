@@ -31,16 +31,22 @@ int main(int argc, char *argv[])
     }
     google::HandleCommandLineHelpFlags();
 
-    auto start = std::chrono::system_clock::now();
-    convert(FLAGS_filename);
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> diff = end - start;
-    LOG(INFO) << "shuffle time: " << diff.count();
+    Timer timer;
+    timer.start();
 
-    start = end;
+    Timer shuffle_timer;
+    shuffle_timer.start();
+    convert(FLAGS_filename);
+    shuffle_timer.stop();
+    LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
+
+    Timer partition_timer;
+    partition_timer.start();
     NeighborPartitioner partitioner(FLAGS_filename);
     partitioner.split();
-    end = std::chrono::system_clock::now();
-    diff = end - start;
-    LOG(INFO) << "partition time: " << diff.count();
+    partition_timer.stop();
+    LOG(INFO) << "partition time: " << partition_timer.get_time();
+
+    timer.stop();
+    LOG(INFO) << "total time: " << timer.get_time();
 }
