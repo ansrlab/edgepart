@@ -1,9 +1,10 @@
 #include <string>
-#include <chrono>
 
 #include "util.hpp"
 #include "conversions.hpp"
 #include "neighbor_partitioner.hpp"
+#include "random_partitioner.hpp"
+#include "dbh_partitioner.hpp"
 
 DECLARE_bool(help);
 DECLARE_bool(helpshort);
@@ -14,6 +15,8 @@ DEFINE_string(filename, "", "the file name of the input graph");
 DEFINE_string(filetype, "edgelist",
               "the type of input file (supports 'edgelist' and 'adjlist')");
 DEFINE_double(sample_ratio, 2, "the sample size divided by num_vertices");
+DEFINE_string(method, "neighbor",
+              "partition method: neighbor, random, and dbh");
 
 int main(int argc, char *argv[])
 {
@@ -42,8 +45,16 @@ int main(int argc, char *argv[])
 
     Timer partition_timer;
     partition_timer.start();
-    NeighborPartitioner partitioner(FLAGS_filename);
-    partitioner.split();
+    Partitioner *partitioner = NULL;
+    if (FLAGS_method == "neighbor")
+        partitioner = new NeighborPartitioner(FLAGS_filename);
+    else if (FLAGS_method == "random")
+        partitioner = new RandomPartitioner(FLAGS_filename);
+    else if (FLAGS_method == "dbh")
+        partitioner = new DbhPartitioner(FLAGS_filename);
+    else
+        LOG(ERROR) << "unkown method: " << FLAGS_method;
+    partitioner->split();
     partition_timer.stop();
     LOG(INFO) << "partition time: " << partition_timer.get_time();
 

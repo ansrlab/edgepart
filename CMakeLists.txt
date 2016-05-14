@@ -22,5 +22,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_EXE_LINK_FLAGS_RELEASE} -Ofast -DNDEBUG")
 add_subdirectory(threadpool11)
 include_directories(./threadpool11/include)
 
-add_executable (main src/main.cpp src/util.cpp src/neighbor_partitioner.cpp src/conversions.cpp src/shuffler.cpp)
+add_executable (main
+    src/main.cpp
+    src/util.cpp
+    src/neighbor_partitioner.cpp
+    src/random_partitioner.cpp
+    src/dbh_partitioner.cpp
+    src/conversions.cpp
+    src/shuffler.cpp)
 target_link_libraries (main glog gflags threadpool11)

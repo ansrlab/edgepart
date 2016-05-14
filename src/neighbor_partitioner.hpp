@@ -15,6 +15,7 @@
 #include "min_heap.hpp"
 #include "dense_bitset.hpp"
 #include "edgepart.hpp"
+#include "partitioner.hpp"
 
 class adjlist_t
 {
@@ -101,7 +102,7 @@ class graph_t
     const adjlist_t &operator[](size_t idx) const { return vdata[idx]; };
 };
 
-class NeighborPartitioner
+class NeighborPartitioner : public Partitioner
 {
   private:
     const size_t BUFFER_SIZE = 64 * 1024 / sizeof(edge_t);
