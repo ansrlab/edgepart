@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
         partitioner = new DbhPartitioner(FLAGS_filename);
     else
         LOG(ERROR) << "unkown method: " << FLAGS_method;
+    LOG(INFO) << "partition method: " << FLAGS_method;
     partitioner->split();
     partition_timer.stop();
     LOG(INFO) << "partition time: " << partition_timer.get_time();

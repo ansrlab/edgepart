@@ -1,4 +1,5 @@
 #include <utility>
+#include <functional>
 
 #include "util.hpp"
 #include "random_partitioner.hpp"
@@ -33,20 +34,22 @@ RandomPartitioner::RandomPartitioner(std::string basefilename)
               << ", num_edges: " << num_edges;
 
     p = FLAGS_p;
-    dis.param(std::uniform_int_distribution<int>::param_type(0, p - 1));
 }
 
 void RandomPartitioner::split()
 {
     std::vector<dense_bitset> is_mirrors(p, dense_bitset(num_vertices));
     std::vector<size_t> counter(p, 0);
+    auto hash = std::hash<vid_t>();
     while (fin_ptr < fin_end) {
         edge_t *e = (edge_t *)fin_ptr;
         fin_ptr += sizeof(edge_t);
-        int bucket = dis(gen);
+        vid_t u = e->first, v = e->second;
+        if (u > v) std::swap(u, v);
+        int bucket = (hash(u) ^ (hash(v) << 1)) % p;
         counter[bucket]++;
-        is_mirrors[bucket].set_bit_unsync(e->first);
-        is_mirrors[bucket].set_bit_unsync(e->second);
+        is_mirrors[bucket].set_bit_unsync(u);
+        is_mirrors[bucket].set_bit_unsync(v);
     }
 
     if (munmap(fin_map, filesize) == -1) {
