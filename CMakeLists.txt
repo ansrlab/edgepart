@@ -30,4 +30,10 @@ add_executable (main
     src/dbh_partitioner.cpp
     src/conversions.cpp
     src/shuffler.cpp)
+add_executable (graph2edgelist
+    src/graph2edgelist.cpp
+    src/util.cpp
+    src/conversions.cpp)
+
 target_link_libraries (main glog gflags threadpool11)
+target_link_libraries (graph2edgelist glog gflags threadpool11)

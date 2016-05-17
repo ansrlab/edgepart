@@ -1,7 +1,6 @@
 #include <string.h>
 
 #include "conversions.hpp"
-#include "shuffler.hpp"
 
 // Removes \n from the end of line
 void FIXLINE(char *s)
@@ -11,7 +10,7 @@ void FIXLINE(char *s)
         s[len] = 0;
 }
 
-void convert_edgelist(std::string inputfile, Shuffler &shuffler)
+void convert_edgelist(std::string inputfile, Converter *converter)
 {
     FILE *inf = fopen(inputfile.c_str(), "r");
     size_t bytesread = 0;
@@ -54,13 +53,13 @@ void convert_edgelist(std::string inputfile, Shuffler &shuffler)
         vid_t to = atoi(t);
 
         if (from != to) {
-            shuffler.add_edge(from, to);
+            converter->add_edge(from, to);
         }
     }
     fclose(inf);
 }
 
-void convert_adjlist(std::string inputfile, Shuffler &shuffler)
+void convert_adjlist(std::string inputfile, Converter *converter)
 {
     FILE *inf = fopen(inputfile.c_str(), "r");
     if (inf == NULL) {
@@ -101,7 +100,7 @@ void convert_adjlist(std::string inputfile, Shuffler &shuffler)
             while ((t = strtok(NULL, delims)) != NULL) {
                 vid_t to = atoi(t);
                 if (from != to) {
-                    shuffler.add_edge(from, to);
+                    converter->add_edge(from, to);
                 }
                 i++;
             }
@@ -115,24 +114,23 @@ void convert_adjlist(std::string inputfile, Shuffler &shuffler)
     fclose(inf);
 }
 
-void convert(std::string basefilename)
+void convert(std::string basefilename, Converter *converter)
 {
     LOG(INFO) << "shuffle `" << basefilename << "'";
     if (basefilename.empty())
         LOG(FATAL) << "empty file name";
-    if (is_exists(binedgelist_name(basefilename))) {
+    if (converter->done()) {
         LOG(INFO) << "skip";
         return;
     }
-    Shuffler shuffler(basefilename);
-    shuffler.init();
+    converter->init();
     if (FLAGS_filetype == "adjlist") {
-        convert_adjlist(basefilename, shuffler);
+        convert_adjlist(basefilename, converter);
     } else if (FLAGS_filetype == "edgelist") {
-        convert_edgelist(basefilename, shuffler);
+        convert_edgelist(basefilename, converter);
     } else {
         LOG(FATAL) << "unknown filetype";
     }
-    shuffler.finalize();
+    converter->finalize();
 }
 

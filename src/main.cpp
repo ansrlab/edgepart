@@ -2,6 +2,7 @@
 
 #include "util.hpp"
 #include "conversions.hpp"
+#include "shuffler.hpp"
 #include "neighbor_partitioner.hpp"
 #include "random_partitioner.hpp"
 #include "dbh_partitioner.hpp"
@@ -39,7 +40,7 @@ int main(int argc, char *argv[])
 
     Timer shuffle_timer;
     shuffle_timer.start();
-    convert(FLAGS_filename);
+    convert(FLAGS_filename, new Shuffler(FLAGS_filename));
     shuffle_timer.stop();
     LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
 

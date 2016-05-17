@@ -9,8 +9,9 @@
 #include <boost/unordered_map.hpp>
 
 #include "util.hpp"
+#include "conversions.hpp"
 
-class Shuffler
+class Shuffler : public Converter
 {
   private:
     struct work_t {
@@ -55,6 +56,7 @@ class Shuffler
 
   public:
     Shuffler(std::string basefilename) : basefilename(basefilename) {}
+    bool done() { return is_exists(binedgelist_name(basefilename)); }
     void init();
     void finalize();
     void add_edge(vid_t source, vid_t target);
