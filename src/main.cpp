@@ -15,6 +15,7 @@ DEFINE_uint64(memsize, 4096, "memory size in megabytes");
 DEFINE_string(filename, "", "the file name of the input graph");
 DEFINE_string(filetype, "edgelist",
               "the type of input file (supports 'edgelist' and 'adjlist')");
+DEFINE_bool(inmem, false, "in-memory mode");
 DEFINE_double(sample_ratio, 2, "the sample size divided by num_vertices");
 DEFINE_string(method, "neighbor",
               "partition method: neighbor, random, and dbh");

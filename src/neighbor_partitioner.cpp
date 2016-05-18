@@ -29,14 +29,22 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
 
     LOG(INFO) << "num_vertices: " << num_vertices
               << ", num_edges: " << num_edges;
+    CHECK_EQ(sizeof(vid_t) + sizeof(size_t) + num_edges * sizeof(edge_t), filesize);
 
     p = FLAGS_p;
     average_degree = (double)num_edges * 2 / num_vertices;
     assigned_edges = 0;
-    LOG(INFO) << "sample_ratio: " << FLAGS_sample_ratio;
-    max_sample_size = num_vertices * FLAGS_sample_ratio;
+    LOG(INFO) << "inmem: " << FLAGS_inmem;
+    if (!FLAGS_inmem) {
+        LOG(INFO) << "sample_ratio: " << FLAGS_sample_ratio;
+        max_sample_size = num_vertices * FLAGS_sample_ratio;
+    } else
+        max_sample_size = num_edges;
     local_average_degree = 2 * (double)max_sample_size / num_vertices;
     capacity = (double)num_edges * 1.05 / p + 1;
+    BUFFER_SIZE = std::min(64 * 1024 / sizeof(edge_t),
+                           std::max((size_t)1, (size_t)(num_edges * 0.05 / p + 1)));
+    LOG(INFO) << "buffer size: " << BUFFER_SIZE;
     occupied.assign(p, 0);
     adj_out.resize(num_vertices);
     adj_in.resize(num_vertices);
@@ -122,27 +130,36 @@ void NeighborPartitioner::read_remaining()
     }
 }
 
+void NeighborPartitioner::clean_buffer()
+{
+    results.resize(buffer.size());
+
+#pragma omp parallel for
+    for (size_t i = 0; i < buffer.size(); i++)
+        results[i] = check_edge(&buffer[i]);
+
+    for (size_t i = 0; i < buffer.size();)
+        if (results[i] < p) {
+            assign_edge(results[i], buffer[i].first, buffer[i].second);
+            std::swap(results[i], results.back());
+            results.pop_back();
+            std::swap(buffer[i], buffer.back());
+            buffer.pop_back();
+        } else
+            i++;
+    sample_edges.insert(sample_edges.end(), buffer.begin(), buffer.end());
+    buffer.clear();
+}
+
 void NeighborPartitioner::clean_samples()
 {
     repv (u, num_vertices)
-        for (auto &v : adj_out[u])
-            sample_edges.emplace_back(u, v);
-
-    results.resize(sample_edges.size());
-
-#pragma omp parallel for
-    for (size_t i = 0; i < sample_edges.size(); i++)
-        results[i] = check_edge(&sample_edges[i]);
-
-    for (size_t i = 0; i < sample_edges.size();)
-        if (results[i] < p) {
-            assign_edge(results[i], sample_edges[i].first, sample_edges[i].second);
-            std::swap(results[i], results.back());
-            results.pop_back();
-            std::swap(sample_edges[i], sample_edges.back());
-            sample_edges.pop_back();
-        } else
-            i++;
+        for (auto &v : adj_out[u]) {
+            buffer.emplace_back(u, v);
+            if (buffer.size() >= BUFFER_SIZE)
+                clean_buffer();
+        }
+    clean_buffer();
 }
 
 void NeighborPartitioner::assign_master()
@@ -205,7 +222,8 @@ void NeighborPartitioner::split()
         read_timer.stop();
         DLOG(INFO) << "sample size: " << adj_out.num_edges();
         compute_timer.start();
-        local_capacity = adj_out.num_edges() / (p - bucket);
+        local_capacity =
+            FLAGS_inmem ? capacity : adj_out.num_edges() / (p - bucket);
         while (occupied[bucket] < local_capacity) {
             vid_t d, vid;
             if (!min_heap.get_min(d, vid)) {

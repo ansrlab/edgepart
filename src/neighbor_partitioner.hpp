@@ -105,7 +105,7 @@ class graph_t
 class NeighborPartitioner : public Partitioner
 {
   private:
-    const size_t BUFFER_SIZE = 64 * 1024 / sizeof(edge_t);
+    size_t BUFFER_SIZE;
     std::string basefilename;
 
     vid_t num_vertices;
@@ -120,6 +120,7 @@ class NeighborPartitioner : public Partitioner
     off_t filesize;
     char *fin_map, *fin_ptr, *fin_end;
 
+    std::vector<edge_t> buffer;
     std::vector<edge_t> sample_edges;
     graph_t adj_out, adj_in;
     MinHeap<vid_t, vid_t> min_heap;
@@ -268,6 +269,7 @@ class NeighborPartitioner : public Partitioner
 
     void read_more();
     void read_remaining();
+    void clean_buffer();
     void clean_samples();
     void assign_master();
     size_t count_mirrors();
