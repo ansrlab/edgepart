@@ -31,9 +31,6 @@ class RandomPartitioner : public Partitioner
     off_t filesize;
     char *fin_map, *fin_ptr, *fin_end;
 
-    std::random_device rd;
-    std::mt19937 gen;
-
   public:
     RandomPartitioner(std::string basefilename);
     void split();
