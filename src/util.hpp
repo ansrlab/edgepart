@@ -25,6 +25,8 @@ typedef std::pair<vid_t, vid_t> edge_t;
 
 extern threadpool11::Pool pool;
 
+void preada(int f, char *buf, size_t nbytes, size_t off);
+void reada(int f, char *buf, size_t nbytes);
 void writea(int f, char *buf, size_t nbytes);
 
 inline std::string binedgelist_name(const std::string &basefilename)
@@ -48,6 +50,20 @@ inline std::string partitioned_name(const std::string &basefilename)
     return ss.str();
 }
 
+inline std::string hilbert_name(const std::string &basefilename)
+{
+    std::stringstream ss;
+    ss << basefilename << ".hilbert.bin";
+    return ss.str();
+}
+inline std::string sorted_hilbert_name(const std::string &basefilename)
+{
+    std::stringstream ss;
+    ss << basefilename << ".sorted_hilbert.bin";
+    return ss.str();
+}
+
+
 inline bool is_exists(const std::string &name)
 {
     struct stat buffer;
@@ -62,6 +78,7 @@ class Timer
 
   public:
     Timer() : total(0) {}
+    void reset() { total = 0; }
     void start() { t1 = std::chrono::system_clock::now(); }
     void stop()
     {

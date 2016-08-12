@@ -5,6 +5,7 @@
 #include "shuffler.hpp"
 #include "neighbor_partitioner.hpp"
 #include "random_partitioner.hpp"
+#include "hsfc_partitioner.hpp"
 #include "dbh_partitioner.hpp"
 
 DECLARE_bool(help);
@@ -54,6 +55,8 @@ int main(int argc, char *argv[])
         partitioner = new RandomPartitioner(FLAGS_filename);
     else if (FLAGS_method == "dbh")
         partitioner = new DbhPartitioner(FLAGS_filename);
+    else if (FLAGS_method == "hsfc")
+        partitioner = new HsfcPartitioner(FLAGS_filename);
     else
         LOG(ERROR) << "unkown method: " << FLAGS_method;
     LOG(INFO) << "partition method: " << FLAGS_method;
