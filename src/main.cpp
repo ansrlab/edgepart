@@ -1,8 +1,6 @@
 #include <string>
 
 #include "util.hpp"
-#include "conversions.hpp"
-#include "shuffler.hpp"
 #include "neighbor_partitioner.hpp"
 #include "random_partitioner.hpp"
 #include "hsfc_partitioner.hpp"
@@ -40,14 +38,6 @@ int main(int argc, char *argv[])
     Timer timer;
     timer.start();
 
-    Timer shuffle_timer;
-    shuffle_timer.start();
-    convert(FLAGS_filename, new Shuffler(FLAGS_filename));
-    shuffle_timer.stop();
-    LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
-
-    Timer partition_timer;
-    partition_timer.start();
     Partitioner *partitioner = NULL;
     if (FLAGS_method == "neighbor")
         partitioner = new NeighborPartitioner(FLAGS_filename);
@@ -61,8 +51,6 @@ int main(int argc, char *argv[])
         LOG(ERROR) << "unkown method: " << FLAGS_method;
     LOG(INFO) << "partition method: " << FLAGS_method;
     partitioner->split();
-    partition_timer.stop();
-    LOG(INFO) << "partition time: " << partition_timer.get_time();
 
     timer.stop();
     LOG(INFO) << "total time: " << timer.get_time();

@@ -1,11 +1,23 @@
 #include "neighbor_partitioner.hpp"
+#include "conversions.hpp"
+#include "shuffler.hpp"
 
 NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     : basefilename(basefilename), rd(), gen(rd()), writer(basefilename)
 {
+    if (!is_exists(shuffled_binedgelist_name(basefilename))) {
+        Timer shuffle_timer;
+        shuffle_timer.start();
+        convert(basefilename, new Shuffler(basefilename));
+        shuffle_timer.stop();
+        LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
+    } else
+        LOG(INFO) << "skip shuffle";
+
+    total_time.start();
     LOG(INFO) << "initializing partitioner";
 
-    fin = open(binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
+    fin = open(shuffled_binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
     PCHECK(fin != -1) << "Error opening file for read";
     struct stat fileInfo = {0};
     PCHECK(fstat(fin, &fileInfo) != -1) << "Error getting the file size";
@@ -268,4 +280,7 @@ void NeighborPartitioner::split()
     close(fin);
 
     CHECK_EQ(assigned_edges, num_edges);
+
+    total_time.stop();
+    LOG(INFO) << "total partition time: " << total_time.get_time();
 }

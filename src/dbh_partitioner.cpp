@@ -2,9 +2,20 @@
 
 #include "util.hpp"
 #include "dbh_partitioner.hpp"
+#include "conversions.hpp"
 
 DbhPartitioner::DbhPartitioner(std::string basefilename)
 {
+    if (!is_exists(binedgelist_name(basefilename))) {
+        Timer convert_timer;
+        convert_timer.start();
+        convert(basefilename, new Converter(basefilename));
+        convert_timer.stop();
+        LOG(INFO) << "convert time: " << convert_timer.get_time();
+    } else
+        LOG(INFO) << "skip conversion";
+
+    total_time.start();
     LOG(INFO) << "initializing partitioner";
 
     fin = open(binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
@@ -69,4 +80,7 @@ void DbhPartitioner::split()
         total_mirrors += is_mirrors[i].popcount();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
+
+    total_time.stop();
+    LOG(INFO) << "total partition time: " << total_time.get_time();
 }

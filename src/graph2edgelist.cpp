@@ -15,11 +15,11 @@ DEFINE_string(filetype, "edgelist",
 class Graph2Edgelist : public Converter
 {
   private:
-    std::string basefilename;
     std::ofstream fout;
+
   public:
     Graph2Edgelist(std::string basefilename)
-        : basefilename(basefilename)
+        : Converter(basefilename)
     {
     }
     bool done() { return is_exists(basefilename + ".edgelist"); }

@@ -5,10 +5,21 @@
 #include "util.hpp"
 #include "hsfc_partitioner.hpp"
 #include "sort.hpp"
+#include "conversions.hpp"
 
 HsfcPartitioner::HsfcPartitioner(std::string basefilename)
     : basefilename(basefilename)
 {
+    if (!is_exists(binedgelist_name(basefilename))) {
+        Timer convert_timer;
+        convert_timer.start();
+        convert(basefilename, new Converter(basefilename));
+        convert_timer.stop();
+        LOG(INFO) << "convert time: " << convert_timer.get_time();
+    } else
+        LOG(INFO) << "skip conversion";
+
+    total_time.start();
     LOG(INFO) << "initializing partitioner";
 
     fin = open(binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
@@ -61,10 +72,8 @@ void HsfcPartitioner::generate_hilber()
         if (bytes == 1024*1024*1024) {
             gb++;
             bytes = 0;
-            std::cout << '.';
         }
     }
-    std::cout << std::endl;
     fout.close();
     timer.stop();
     LOG(INFO) << "load time: " << timer.get_time();
@@ -77,6 +86,8 @@ void HsfcPartitioner::split()
 
     if (!is_exists(hilbert_name(basefilename)))
         generate_hilber();
+    else
+        LOG(INFO) << "skip generating hilbert distance file";
     if (munmap(fin_map, filesize) == -1) {
         close(fin);
         PLOG(FATAL) << "Error un-mmapping the file";
@@ -84,21 +95,24 @@ void HsfcPartitioner::split()
     close(fin);
 
     Timer timer;
-    timer.start();
-    LOG(INFO) << "sorting...";
-    int fdInput = open(hilbert_name(basefilename).c_str(), O_RDONLY);
-    PCHECK(fdInput != -1) << "Error opening file for read";
-    int fdOutput = open(sorted_hilbert_name(basefilename).c_str(),
-                        O_WRONLY | O_CREAT | O_TRUNC,
-                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    PCHECK(fdOutput != -1) << "Error opening file `"
-                           << sorted_hilbert_name(basefilename)
-                           << "` for write";
-    externalSort(fdInput, num_edges, fdOutput, FLAGS_memsize * 1024 * 1024);
-    close(fdInput);
-    close(fdOutput);
-    timer.stop();
-    LOG(INFO) << "sort time: " << timer.get_time();
+    if (!is_exists(sorted_hilbert_name(basefilename))) {
+        timer.start();
+        LOG(INFO) << "sorting...";
+        int fdInput = open(hilbert_name(basefilename).c_str(), O_RDONLY);
+        PCHECK(fdInput != -1) << "Error opening file for read";
+        int fdOutput = open(sorted_hilbert_name(basefilename).c_str(),
+                            O_WRONLY | O_CREAT | O_TRUNC,
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        PCHECK(fdOutput != -1) << "Error opening file `"
+                               << sorted_hilbert_name(basefilename)
+                               << "` for write";
+        externalSort(fdInput, num_edges, fdOutput, FLAGS_memsize * 1024 * 1024);
+        close(fdInput);
+        close(fdOutput);
+        timer.stop();
+        LOG(INFO) << "sort time: " << timer.get_time();
+    } else
+        LOG(INFO) << "skip sorting";
 
     timer.reset();
     timer.start();
@@ -125,4 +139,7 @@ void HsfcPartitioner::split()
         total_mirrors += is_mirrors[i].popcount();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
+
+    total_time.stop();
+    LOG(INFO) << "total partition time: " << total_time.get_time();
 }

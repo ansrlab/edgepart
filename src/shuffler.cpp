@@ -34,7 +34,7 @@ void Shuffler::finalize()
         CHECK(fin[i]) << "open chunk " << i << " failed";
     }
     std::vector<bool> finished(nchunks, false);
-    std::ofstream fout(binedgelist_name(basefilename), std::ios::binary);
+    std::ofstream fout(shuffled_binedgelist_name(basefilename), std::ios::binary);
     int count = 0;
     fout.write((char *)&num_vertices, sizeof(num_vertices));
     fout.write((char *)&num_edges, sizeof(num_edges));
