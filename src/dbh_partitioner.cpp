@@ -6,14 +6,11 @@
 
 DbhPartitioner::DbhPartitioner(std::string basefilename)
 {
-    if (!is_exists(binedgelist_name(basefilename))) {
-        Timer convert_timer;
-        convert_timer.start();
-        convert(basefilename, new Converter(basefilename));
-        convert_timer.stop();
-        LOG(INFO) << "convert time: " << convert_timer.get_time();
-    } else
-        LOG(INFO) << "skip conversion";
+    Timer convert_timer;
+    convert_timer.start();
+    convert(basefilename, new Converter(basefilename));
+    convert_timer.stop();
+    LOG(INFO) << "convert time: " << convert_timer.get_time();
 
     total_time.start();
     LOG(INFO) << "initializing partitioner";

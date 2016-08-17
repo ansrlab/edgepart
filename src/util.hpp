@@ -38,7 +38,7 @@ inline std::string binedgelist_name(const std::string &basefilename)
 inline std::string shuffled_binedgelist_name(const std::string &basefilename)
 {
     std::stringstream ss;
-    ss << basefilename << "shuffled.binedgelist";
+    ss << basefilename << ".shuffled.binedgelist";
     return ss.str();
 }
 inline std::string degree_name(const std::string &basefilename)
@@ -58,13 +58,13 @@ inline std::string partitioned_name(const std::string &basefilename)
 inline std::string hilbert_name(const std::string &basefilename)
 {
     std::stringstream ss;
-    ss << basefilename << ".hilbert.binedgelist";
+    ss << basefilename << ".hilbert.bin";
     return ss.str();
 }
 inline std::string sorted_hilbert_name(const std::string &basefilename)
 {
     std::stringstream ss;
-    ss << basefilename << ".sorted_hilbert.binedgelist";
+    ss << basefilename << ".sorted_hilbert.bin";
     return ss.str();
 }
 

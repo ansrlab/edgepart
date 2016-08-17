@@ -5,14 +5,11 @@
 NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     : basefilename(basefilename), rd(), gen(rd()), writer(basefilename)
 {
-    if (!is_exists(shuffled_binedgelist_name(basefilename))) {
-        Timer shuffle_timer;
-        shuffle_timer.start();
-        convert(basefilename, new Shuffler(basefilename));
-        shuffle_timer.stop();
-        LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
-    } else
-        LOG(INFO) << "skip shuffle";
+    Timer shuffle_timer;
+    shuffle_timer.start();
+    convert(basefilename, new Shuffler(basefilename));
+    shuffle_timer.stop();
+    LOG(INFO) << "shuffle time: " << shuffle_timer.get_time();
 
     total_time.start();
     LOG(INFO) << "initializing partitioner";

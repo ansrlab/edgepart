@@ -116,7 +116,7 @@ void convert_adjlist(std::string inputfile, Converter *converter)
 
 void convert(std::string basefilename, Converter *converter)
 {
-    LOG(INFO) << "shuffle `" << basefilename << "'";
+    LOG(INFO) << "converting `" << basefilename << "'";
     if (basefilename.empty())
         LOG(FATAL) << "empty file name";
     if (converter->done()) {
