@@ -1,8 +1,8 @@
-#include "neighbor_partitioner.hpp"
+#include "sne_partitioner.hpp"
 #include "conversions.hpp"
 #include "shuffler.hpp"
 
-NeighborPartitioner::NeighborPartitioner(std::string basefilename)
+SnePartitioner::SnePartitioner(std::string basefilename)
     : basefilename(basefilename), rd(), gen(rd()), writer(basefilename)
 {
     Timer shuffle_timer;
@@ -68,7 +68,7 @@ NeighborPartitioner::NeighborPartitioner(std::string basefilename)
     degree_file.close();
 };
 
-void NeighborPartitioner::read_more()
+void SnePartitioner::read_more()
 {
     while (sample_edges.size() < max_sample_size && fin_ptr < fin_end) {
         edge_t *fin_buffer_end = std::min((edge_t *)fin_ptr + BUFFER_SIZE, (edge_t *)fin_end);
@@ -96,7 +96,7 @@ void NeighborPartitioner::read_more()
     sample_edges.clear();
 }
 
-void NeighborPartitioner::read_remaining()
+void SnePartitioner::read_remaining()
 {
     auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
 
@@ -139,7 +139,7 @@ void NeighborPartitioner::read_remaining()
     }
 }
 
-void NeighborPartitioner::clean_buffer()
+void SnePartitioner::clean_buffer()
 {
     results.resize(buffer.size());
 
@@ -160,7 +160,7 @@ void NeighborPartitioner::clean_buffer()
     buffer.clear();
 }
 
-void NeighborPartitioner::clean_samples()
+void SnePartitioner::clean_samples()
 {
     repv (u, num_vertices)
         for (auto &v : adj_out[u]) {
@@ -171,7 +171,7 @@ void NeighborPartitioner::clean_samples()
     clean_buffer();
 }
 
-void NeighborPartitioner::assign_master()
+void SnePartitioner::assign_master()
 {
     std::vector<vid_t> count_master(p, 0);
     std::vector<vid_t> quota(p, num_vertices);
@@ -206,7 +206,7 @@ void NeighborPartitioner::assign_master()
               << (double)max_masters / ((double)num_vertices / p);
 }
 
-size_t NeighborPartitioner::count_mirrors()
+size_t SnePartitioner::count_mirrors()
 {
     size_t result = 0;
     rep (i, p)
@@ -214,7 +214,7 @@ size_t NeighborPartitioner::count_mirrors()
     return result;
 }
 
-void NeighborPartitioner::split()
+void SnePartitioner::split()
 {
     LOG(INFO) << "partition `" << basefilename << "'";
     LOG(INFO) << "number of partitions: " << p;

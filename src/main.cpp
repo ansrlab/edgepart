@@ -1,7 +1,7 @@
 #include <string>
 
 #include "util.hpp"
-#include "neighbor_partitioner.hpp"
+#include "sne_partitioner.hpp"
 #include "random_partitioner.hpp"
 #include "hsfc_partitioner.hpp"
 #include "dbh_partitioner.hpp"
@@ -16,8 +16,8 @@ DEFINE_string(filetype, "edgelist",
               "the type of input file (supports 'edgelist' and 'adjlist')");
 DEFINE_bool(inmem, false, "in-memory mode");
 DEFINE_double(sample_ratio, 2, "the sample size divided by num_vertices");
-DEFINE_string(method, "neighbor",
-              "partition method: neighbor, random, and dbh");
+DEFINE_string(method, "sne",
+              "partition method: sne, random, and dbh");
 
 int main(int argc, char *argv[])
 {
@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
     timer.start();
 
     Partitioner *partitioner = NULL;
-    if (FLAGS_method == "neighbor")
-        partitioner = new NeighborPartitioner(FLAGS_filename);
+    if (FLAGS_method == "sne")
+        partitioner = new SnePartitioner(FLAGS_filename);
     else if (FLAGS_method == "random")
         partitioner = new RandomPartitioner(FLAGS_filename);
     else if (FLAGS_method == "dbh")

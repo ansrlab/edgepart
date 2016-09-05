@@ -26,7 +26,7 @@ add_executable (main
     src/main.cpp
     src/util.cpp
     src/sort.cpp
-    src/neighbor_partitioner.cpp
+    src/sne_partitioner.cpp
     src/random_partitioner.cpp
     src/hsfc_partitioner.cpp
     src/dbh_partitioner.cpp

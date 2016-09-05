@@ -102,7 +102,8 @@ class graph_t
     const adjlist_t &operator[](size_t idx) const { return vdata[idx]; };
 };
 
-class NeighborPartitioner : public Partitioner
+/* Streaming Neighbor Expansion (SNE) */
+class SnePartitioner : public Partitioner
 {
   private:
     size_t BUFFER_SIZE;
@@ -275,6 +276,6 @@ class NeighborPartitioner : public Partitioner
     size_t count_mirrors();
 
   public:
-    NeighborPartitioner(std::string basefilename);
+    SnePartitioner(std::string basefilename);
     void split();
 };
