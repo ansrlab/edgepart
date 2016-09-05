@@ -17,29 +17,26 @@
 #include "partitioner.hpp"
 #include "graph.hpp"
 
-/* Streaming Neighbor Expansion (SNE) */
-class SnePartitioner : public Partitioner
+/* Neighbor Expansion (NE) */
+class NePartitioner : public Partitioner
 {
   private:
-    const double BALANCE_RATIO = 1.05;
-    size_t BUFFER_SIZE;
+    const double BALANCE_RATIO = 1.00;
 
     std::string basefilename;
 
     vid_t num_vertices;
     size_t num_edges, assigned_edges;
     int p, bucket;
-    double average_degree, local_average_degree;
-    size_t max_sample_size;
-    size_t capacity, local_capacity;
+    double average_degree;
+    size_t capacity;
 
     // use mmap for file input
     int fin;
     off_t filesize;
     char *fin_map, *fin_ptr, *fin_end;
 
-    std::vector<edge_t> buffer;
-    std::vector<edge_t> sample_edges;
+    std::vector<edge_t> edges;
     graph_t adj_out, adj_in;
     MinHeap<vid_t, vid_t> min_heap;
     std::vector<size_t> occupied;
@@ -112,7 +109,7 @@ class SnePartitioner : public Partitioner
                     min_heap.decrease_key(vid);
                     std::swap(u, neighbors.back());
                     neighbors.pop_back();
-                } else if (is_boundary.get(u) && occupied[bucket] < local_capacity) {
+                } else if (is_boundary.get(u) && occupied[bucket] < capacity) {
                     assign_edge(bucket, direction ? vid : u, direction ? u : vid);
                     min_heap.decrease_key(vid);
                     erase_one(adj_r[u], vid);
@@ -151,7 +148,7 @@ class SnePartitioner : public Partitioner
         while (count < num_vertices &&
                (adj_out[vid].size() + adj_in[vid].size() == 0 ||
                 adj_out[vid].size() + adj_in[vid].size() >
-                    2 * local_average_degree ||
+                    2 * average_degree ||
                 is_cores[bucket].get(vid))) {
             vid = (vid + ++count) % num_vertices;
         }
@@ -160,14 +157,12 @@ class SnePartitioner : public Partitioner
         return true;
     }
 
-    void read_more();
-    void read_remaining();
-    void clean_buffer();
-    void clean_samples();
+    void load_graph();
+    void assign_remaining();
     void assign_master();
     size_t count_mirrors();
 
   public:
-    SnePartitioner(std::string basefilename);
+    NePartitioner(std::string basefilename);
     void split();
 };

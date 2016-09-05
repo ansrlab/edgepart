@@ -50,7 +50,7 @@ SnePartitioner::SnePartitioner(std::string basefilename)
     } else
         max_sample_size = num_edges;
     local_average_degree = 2 * (double)max_sample_size / num_vertices;
-    capacity = (double)num_edges * 1.05 / p + 1;
+    capacity = (double)num_edges * BALANCE_RATIO / p + 1;
     BUFFER_SIZE = std::min(64 * 1024 / sizeof(edge_t),
                            std::max((size_t)1, (size_t)(num_edges * 0.05 / p + 1)));
     LOG(INFO) << "buffer size: " << BUFFER_SIZE;
@@ -237,8 +237,8 @@ void SnePartitioner::split()
             vid_t d, vid;
             if (!min_heap.get_min(d, vid)) {
                 if (!get_free_vertex(vid)) {
-                    LOG(INFO) << "partition " << bucket
-                              << " stop: no free vertices";
+                    DLOG(INFO) << "partition " << bucket
+                               << " stop: no free vertices";
                     break;
                 }
                 d = adj_out[vid].size() + adj_in[vid].size();
