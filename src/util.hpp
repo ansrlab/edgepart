@@ -21,7 +21,14 @@ DECLARE_bool(inmem);
 DECLARE_double(sample_ratio);
 
 typedef uint32_t vid_t;
-typedef std::pair<vid_t, vid_t> edge_t;
+const vid_t INVALID_VID = -1;
+struct edge_t {
+    vid_t first, second;
+    edge_t() : first(0), second(0) {}
+    edge_t(vid_t first, vid_t second) : first(first), second(second) {}
+    const bool valid() { return first != INVALID_VID; }
+    void remove() { first = INVALID_VID; }
+};
 
 extern threadpool11::Pool pool;
 

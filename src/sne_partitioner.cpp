@@ -92,19 +92,18 @@ void SnePartitioner::read_more()
     adj_out.build(sample_edges);
 
     adj_in.build_reverse(sample_edges);
-
-    sample_edges.clear();
 }
 
 void SnePartitioner::read_remaining()
 {
     auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
 
-    for (auto &e : sample_edges) {
-        is_boundary.set_bit_unsync(e.first);
-        is_boundary.set_bit_unsync(e.second);
-        assign_edge(p - 1, e.first, e.second);
-    }
+    for (auto &e : sample_edges)
+        if (e.valid()) {
+            is_boundary.set_bit_unsync(e.first);
+            is_boundary.set_bit_unsync(e.second);
+            assign_edge(p - 1, e.first, e.second);
+        }
 
     while (fin_ptr < fin_end) {
         edge_t *fin_buffer_end = std::min((edge_t *)fin_ptr + BUFFER_SIZE, (edge_t *)fin_end);
@@ -139,36 +138,22 @@ void SnePartitioner::read_remaining()
     }
 }
 
-void SnePartitioner::clean_buffer()
-{
-    results.resize(buffer.size());
-
-#pragma omp parallel for
-    for (size_t i = 0; i < buffer.size(); i++)
-        results[i] = check_edge(&buffer[i]);
-
-    for (size_t i = 0; i < buffer.size();)
-        if (results[i] < p) {
-            assign_edge(results[i], buffer[i].first, buffer[i].second);
-            std::swap(results[i], results.back());
-            results.pop_back();
-            std::swap(buffer[i], buffer.back());
-            buffer.pop_back();
-        } else
-            i++;
-    sample_edges.insert(sample_edges.end(), buffer.begin(), buffer.end());
-    buffer.clear();
-}
-
 void SnePartitioner::clean_samples()
 {
-    repv (u, num_vertices)
-        for (auto &v : adj_out[u]) {
-            buffer.emplace_back(u, v);
-            if (buffer.size() >= BUFFER_SIZE)
-                clean_buffer();
+    for (size_t i = 0; i < sample_edges.size();) {
+        if (sample_edges[i].valid()) {
+            int bucket = check_edge(&sample_edges[i]);
+            if (bucket < p) {
+                assign_edge(bucket, sample_edges[i].first, sample_edges[i].second);
+                std::swap(sample_edges[i], sample_edges.back());
+                sample_edges.pop_back();
+            } else
+                i++;
+        } else {
+            std::swap(sample_edges[i], sample_edges.back());
+            sample_edges.pop_back();
         }
-    clean_buffer();
+    }
 }
 
 void SnePartitioner::assign_master()
@@ -244,7 +229,7 @@ void SnePartitioner::split()
                 d = adj_out[vid].size() + adj_in[vid].size();
             } else {
                 min_heap.remove(vid);
-                CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size());
+                /* CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size()); */
             }
 
             occupy_vertex(vid, d);

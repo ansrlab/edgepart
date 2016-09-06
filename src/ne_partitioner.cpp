@@ -68,14 +68,14 @@ void NePartitioner::load_graph()
     LOG(INFO) << "constructing...";
     adj_out.build(edges);
     adj_in.build_reverse(edges);
-    edges.clear();
 }
 
 void NePartitioner::assign_remaining()
 {
     repv (u, num_vertices)
-        for (auto &v : adj_out[u])
-            assign_edge(p-1, u, v);
+        for (auto &i : adj_out[u])
+            if (edges[i].valid())
+                assign_edge(p - 1, u, edges[i].second);
 }
 
 void NePartitioner::assign_master()
@@ -142,12 +142,24 @@ void NePartitioner::split()
                 d = adj_out[vid].size() + adj_in[vid].size();
             } else {
                 min_heap.remove(vid);
-                CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size());
+                /* CHECK_EQ(d, adj_out[vid].size() + adj_in[vid].size()); */
             }
 
             occupy_vertex(vid, d);
         }
         min_heap.clear();
+        rep (direction, 2)
+            repv (vid, num_vertices) {
+                adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
+                for (size_t i = 0; i < neighbors.size();) {
+                    if (edges[neighbors[i]].valid()) {
+                        i++;
+                    } else {
+                        std::swap(neighbors[i], neighbors.back());
+                        neighbors.pop_back();
+                    }
+                }
+            }
     }
     bucket = p - 1;
     std::cerr << bucket << std::endl;

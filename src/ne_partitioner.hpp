@@ -101,23 +101,31 @@ class NePartitioner : public Partitioner
 
         rep (direction, 2) {
             adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
-            graph_t &adj_r = direction ? adj_in : adj_out;
             for (size_t i = 0; i < neighbors.size();) {
-                vid_t &u = neighbors[i];
-                if (is_core.get(u)) {
-                    assign_edge(bucket, direction ? vid : u, direction ? u : vid);
-                    min_heap.decrease_key(vid);
-                    std::swap(u, neighbors.back());
+                if (edges[neighbors[i]].valid()) {
+                    vid_t &u = direction ? edges[neighbors[i]].second : edges[neighbors[i]].first;
+                    if (is_core.get(u)) {
+                        assign_edge(bucket, direction ? vid : u,
+                                    direction ? u : vid);
+                        min_heap.decrease_key(vid);
+                        edges[neighbors[i]].remove();
+                        std::swap(neighbors[i], neighbors.back());
+                        neighbors.pop_back();
+                    } else if (is_boundary.get(u) &&
+                               occupied[bucket] < capacity) {
+                        assign_edge(bucket, direction ? vid : u,
+                                    direction ? u : vid);
+                        min_heap.decrease_key(vid);
+                        min_heap.decrease_key(u);
+                        edges[neighbors[i]].remove();
+                        std::swap(neighbors[i], neighbors.back());
+                        neighbors.pop_back();
+                    } else
+                        i++;
+                } else {
+                    std::swap(neighbors[i], neighbors.back());
                     neighbors.pop_back();
-                } else if (is_boundary.get(u) && occupied[bucket] < capacity) {
-                    assign_edge(bucket, direction ? vid : u, direction ? u : vid);
-                    min_heap.decrease_key(vid);
-                    erase_one(adj_r[u], vid);
-                    min_heap.decrease_key(u);
-                    std::swap(u, neighbors.back());
-                    neighbors.pop_back();
-                } else
-                    i++;
+                }
             }
         }
     }
@@ -132,12 +140,14 @@ class NePartitioner : public Partitioner
 
         add_boundary(vid);
 
-        for (auto &w : adj_out[vid])
-            add_boundary(w);
+        for (auto &i : adj_out[vid])
+            if (edges[i].valid())
+                add_boundary(edges[i].second);
         adj_out[vid].clear();
 
-        for (auto &w : adj_in[vid])
-            add_boundary(w);
+        for (auto &i : adj_in[vid])
+            if (edges[i].valid())
+                add_boundary(edges[i].first);
         adj_in[vid].clear();
     }
 
