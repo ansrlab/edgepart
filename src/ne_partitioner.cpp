@@ -13,27 +13,14 @@ NePartitioner::NePartitioner(std::string basefilename)
     total_time.start();
     LOG(INFO) << "initializing partitioner";
 
-    fin = open(binedgelist_name(basefilename).c_str(), O_RDONLY, (mode_t)0600);
-    PCHECK(fin != -1) << "Error opening file for read";
-    struct stat fileInfo = {0};
-    PCHECK(fstat(fin, &fileInfo) != -1) << "Error getting the file size";
-    PCHECK(fileInfo.st_size != 0) << "Error: file is empty";
-    LOG(INFO) << "file size: " << fileInfo.st_size;
+    std::ifstream fin(binedgelist_name(basefilename),
+                      std::ios::binary | std::ios::ate);
+    auto filesize = fin.tellg();
+    LOG(INFO) << "file size: " << filesize;
+    fin.seekg(0, std::ios::beg);
 
-    fin_map = (char *)mmap(0, fileInfo.st_size, PROT_READ, MAP_SHARED, fin, 0);
-    if (fin_map == MAP_FAILED) {
-        close(fin);
-        PLOG(FATAL) << "error mapping the file";
-    }
-
-    filesize = fileInfo.st_size;
-    fin_ptr = fin_map;
-    fin_end = fin_map + filesize;
-
-    num_vertices = *(vid_t *)fin_ptr;
-    fin_ptr += sizeof(vid_t);
-    num_edges = *(size_t *)fin_ptr;
-    fin_ptr += sizeof(size_t);
+    fin.read((char *)&num_vertices, sizeof(num_vertices));
+    fin.read((char *)&num_edges, sizeof(num_edges));
 
     LOG(INFO) << "num_vertices: " << num_vertices
               << ", num_edges: " << num_edges;
@@ -48,58 +35,81 @@ NePartitioner::NePartitioner(std::string basefilename)
     adj_in.resize(num_vertices);
     is_cores.assign(p, dense_bitset(num_vertices));
     is_boundarys.assign(p, dense_bitset(num_vertices));
+    master.assign(num_vertices, -1);
     dis.param(std::uniform_int_distribution<vid_t>::param_type(0, num_vertices - 1));
+
+    Timer read_timer;
+    read_timer.start();
+    LOG(INFO) << "loading...";
+    edges.resize(num_edges);
+    fin.read((char *)&edges[0], sizeof(edge_t) * num_edges);
+
+    LOG(INFO) << "constructing...";
+    adj_out.build(edges);
+    adj_in.build_reverse(edges);
 
     degrees.resize(num_vertices);
     std::ifstream degree_file(degree_name(basefilename), std::ios::binary);
     degree_file.read((char *)&degrees[0], num_vertices * sizeof(vid_t));
     degree_file.close();
+    read_timer.stop();
+    LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
 };
-
-void NePartitioner::load_graph()
-{
-    LOG(INFO) << "loading...";
-    while (fin_ptr < fin_end) {
-        const edge_t *e = (edge_t *)fin_ptr;
-        edges.push_back(*e);
-        fin_ptr += sizeof(edge_t);
-    }
-
-    LOG(INFO) << "constructing...";
-    adj_out.build(edges);
-    adj_in.build_reverse(edges);
-}
 
 void NePartitioner::assign_remaining()
 {
+    auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
     repv (u, num_vertices)
         for (auto &i : adj_out[u])
-            if (edges[i].valid())
+            if (edges[i].valid()) {
                 assign_edge(p - 1, u, edges[i].second);
+                is_boundary.set_bit_unsync(u);
+                is_boundary.set_bit_unsync(edges[i].second);
+            }
+
+    repv (i, num_vertices) {
+        if (is_boundary.get(i)) {
+            is_core.set_bit_unsync(i);
+            rep (j, p - 1)
+                if (is_cores[j].get(i)) {
+                    is_core.set_unsync(i, false);
+                    break;
+                }
+        }
+    }
 }
 
 void NePartitioner::assign_master()
 {
     std::vector<vid_t> count_master(p, 0);
-    std::vector<bool> allocated(num_vertices);
-    rep (i, p-1) {
-        auto is_core = is_cores[i];
-        repv (v, num_vertices)
-            if (is_core.get(v)) {
-                count_master[i]++;
-                allocated[v] = true;
-                writer.save_vertex(v, i);
-            }
-    }
-    repv (v, num_vertices)
-        if (!allocated[v]) {
-            count_master[p-1]++;
-            writer.save_vertex(v, p-1);
+    std::vector<vid_t> quota(p, num_vertices);
+    long long sum = p * num_vertices;
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::vector<dense_bitset::iterator> pos(p);
+    rep (b, p)
+        pos[b] = is_boundarys[b].begin();
+    vid_t count = 0;
+    while (count < num_vertices) {
+        long long r = distribution(gen) * sum;
+        int k;
+        for (k = 0; k < p; k++) {
+            if (r < quota[k])
+                break;
+            r -= quota[k];
         }
+        while (pos[k] != is_boundarys[k].end() && master[*pos[k]] != -1)
+            pos[k]++;
+        if (pos[k] != is_boundarys[k].end()) {
+            count++;
+            master[*pos[k]] = k;
+            writer.save_vertex(*pos[k], k);
+            count_master[k]++;
+            quota[k]--;
+            sum--;
+        }
+    }
     int max_masters =
         *std::max_element(count_master.begin(), count_master.end());
-    vid_t total_master = std::accumulate(count_master.begin(), count_master.end(), 0);
-    CHECK_EQ(total_master, num_vertices);
     LOG(INFO) << "master balance: "
               << (double)max_masters / ((double)num_vertices / p);
 }
@@ -117,14 +127,9 @@ void NePartitioner::split()
     LOG(INFO) << "partition `" << basefilename << "'";
     LOG(INFO) << "number of partitions: " << p;
 
-    Timer read_timer, compute_timer;
+    Timer compute_timer;
 
     min_heap.reserve(num_vertices);
-    edges.reserve(num_edges);
-
-    read_timer.start();
-    load_graph();
-    read_timer.stop();
 
     LOG(INFO) << "partitioning...";
     compute_timer.start();
@@ -174,14 +179,7 @@ void NePartitioner::split()
     size_t total_mirrors = count_mirrors();
     LOG(INFO) << "total mirrors: " << total_mirrors;
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
-    LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
     LOG(INFO) << "time used for partitioning: " << compute_timer.get_time();
-
-    if (munmap(fin_map, filesize) == -1) {
-        close(fin);
-        PLOG(FATAL) << "Error un-mmapping the file";
-    }
-    close(fin);
 
     CHECK_EQ(assigned_edges, num_edges);
 

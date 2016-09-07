@@ -31,11 +31,6 @@ class NePartitioner : public Partitioner
     double average_degree;
     size_t capacity;
 
-    // use mmap for file input
-    int fin;
-    off_t filesize;
-    char *fin_map, *fin_ptr, *fin_end;
-
     std::vector<edge_t> edges;
     graph_t adj_out, adj_in;
     MinHeap<vid_t, vid_t> min_heap;
@@ -167,7 +162,6 @@ class NePartitioner : public Partitioner
         return true;
     }
 
-    void load_graph();
     void assign_remaining();
     void assign_master();
     size_t count_mirrors();
