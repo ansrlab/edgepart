@@ -31,17 +31,26 @@ class graph_t
 {
   private:
     vid_t num_vertices;
-    std::vector<size_t> neighbors;
+    size_t nedges;
+    size_t *neighbors;
     std::vector<adjlist_t> vdata;
 
   public:
+    graph_t() : num_vertices(0), nedges(0), neighbors(NULL) {}
+
+    ~graph_t()
+    {
+        if (neighbors)
+            free(neighbors);
+    }
+
     void resize(vid_t _num_vertices)
     {
         num_vertices = _num_vertices;
         vdata.resize(num_vertices);
     }
 
-    size_t num_edges() const { return neighbors.size(); }
+    size_t num_edges() const { return nedges; }
 
     void build(const std::vector<edge_t> &edges);
 
