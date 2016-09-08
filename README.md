@@ -33,7 +33,7 @@ Algorithms that are listed but not contained in this repo:
 Algorithm  |  wiki-Vote  |  email-Enron  |  web-Google  |  com-LiveJournal  |  com-Orkut  |  twitter-2010  |  com-Friendster  |  uk-union
 ---------  |  ---------  |  -----------  |  ----------  |  ---------------  |  ---------  |  ------------  |  --------------  |  --------
 METIS      |  5.25       |  2.40         |  1.05        |  2.13             |  MLE        |  MLE           |  MLE             |  MLE
-NE         |  2.35       |  1.34         |  1.12        |  1.55             |  2.48       |  MLE           |  MLE             |  MLE
+NE         |  2.35       |  1.34         |  1.12        |  1.55             |  2.48       |  1.88          |  1.98            |  1.04
 Random     |  9.28       |  5.10         |  6.54        |  8.27             |  19.48      |  11.68         |  11.84           |  15.99
 DBH        |  5.43       |  3.32         |  4.09        |  5.18             |  11.97      |  3.67          |  6.88            |  5.14
 Oblivious  |  3.85       |  2.30         |  2.28        |  3.43             |  6.94       |  8.60          |  8.82            |  2.03
