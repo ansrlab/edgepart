@@ -11,7 +11,7 @@ their replication factors for comparison:
 *   A method based on
     [Hilber space-filling curve](https://en.wikipedia.org/wiki/Hilbert_curve) (HSFC):
     this one is inspired by Frank McSherry's [post](https://github.com/frankmcsherry/blog/blob/master/posts/2015-01-15.md)
-*   A method via neighborhood heuristic (neighbor): our submission to NIPS'16
+*   Our algorithms described in our paper **Graph Edge Partitioning via Neighborhood Heuristic** (submitted to KDD'17)
     -   Neighbor expansion (NE)
     -   Streaming neighbor expansion (SNE)
 
