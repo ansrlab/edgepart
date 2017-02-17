@@ -58,7 +58,7 @@ inline std::string degree_name(const std::string &basefilename)
 inline std::string partitioned_name(const std::string &basefilename)
 {
     std::stringstream ss;
-    ss << basefilename << ".edgepart";
+    ss << basefilename << ".edgepart." << FLAGS_p; // chenzi: add partition number to the output file
     return ss.str();
 }
 

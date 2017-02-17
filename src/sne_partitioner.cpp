@@ -237,13 +237,16 @@ void SnePartitioner::split()
         min_heap.clear();
         clean_samples();
         compute_timer.stop();
+        LOG(INFO) << "finished part: " << bucket;
     }
     bucket = p - 1;
     std::cerr << bucket << std::endl;
     read_timer.start();
     read_remaining();
     read_timer.stop();
-    assign_master();
+    LOG(INFO) << "finished part: " << bucket;
+
+    // assign_master();
     LOG(INFO) << "expected edges in each partition: " << num_edges / p;
     rep (i, p)
         DLOG(INFO) << "edges in partition " << i << ": " << occupied[i];
@@ -254,6 +257,9 @@ void SnePartitioner::split()
     LOG(INFO) << "replication factor: " << (double)total_mirrors / num_vertices;
     LOG(INFO) << "time used for graph input and construction: " << read_timer.get_time();
     LOG(INFO) << "time used for partitioning: " << compute_timer.get_time();
+
+    LOG(INFO) << "delayed master assignment: ";
+    assign_master();
 
     if (munmap(fin_map, filesize) == -1) {
         close(fin);

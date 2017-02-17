@@ -38,7 +38,6 @@ class NePartitioner : public Partitioner
     std::vector<vid_t> degrees;
     std::vector<int8_t> master;
     std::vector<dense_bitset> is_cores, is_boundarys;
-    std::vector<int8_t> results;
 
     std::random_device rd;
     std::mt19937 gen;
@@ -97,13 +96,13 @@ class NePartitioner : public Partitioner
         rep (direction, 2) {
             adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
             for (size_t i = 0; i < neighbors.size();) {
-                if (edges[neighbors[i]].valid()) {
-                    vid_t &u = direction ? edges[neighbors[i]].second : edges[neighbors[i]].first;
+                if (edges[neighbors[i].v].valid()) {
+                    vid_t &u = direction ? edges[neighbors[i].v].second : edges[neighbors[i].v].first;
                     if (is_core.get(u)) {
                         assign_edge(bucket, direction ? vid : u,
                                     direction ? u : vid);
                         min_heap.decrease_key(vid);
-                        edges[neighbors[i]].remove();
+                        edges[neighbors[i].v].remove();
                         std::swap(neighbors[i], neighbors.back());
                         neighbors.pop_back();
                     } else if (is_boundary.get(u) &&
@@ -112,7 +111,7 @@ class NePartitioner : public Partitioner
                                     direction ? u : vid);
                         min_heap.decrease_key(vid);
                         min_heap.decrease_key(u);
-                        edges[neighbors[i]].remove();
+                        edges[neighbors[i].v].remove();
                         std::swap(neighbors[i], neighbors.back());
                         neighbors.pop_back();
                     } else
@@ -136,13 +135,13 @@ class NePartitioner : public Partitioner
         add_boundary(vid);
 
         for (auto &i : adj_out[vid])
-            if (edges[i].valid())
-                add_boundary(edges[i].second);
+            if (edges[i.v].valid())
+                add_boundary(edges[i.v].second);
         adj_out[vid].clear();
 
         for (auto &i : adj_in[vid])
-            if (edges[i].valid())
-                add_boundary(edges[i].first);
+            if (edges[i.v].valid())
+                add_boundary(edges[i.v].first);
         adj_in[vid].clear();
     }
 

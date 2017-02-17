@@ -3,7 +3,7 @@
 void graph_t::build(const std::vector<edge_t> &edges)
 {
     if (edges.size() > nedges)
-        neighbors = (size_t *)realloc(neighbors, sizeof(size_t) * edges.size());
+        neighbors = (uint40_t *)realloc(neighbors, sizeof(uint40_t) * edges.size());
     CHECK(neighbors) << "allocation failed";
     nedges = edges.size();
 
@@ -23,7 +23,7 @@ void graph_t::build(const std::vector<edge_t> &edges)
 void graph_t::build_reverse(const std::vector<edge_t> &edges)
 {
     if (edges.size() > nedges)
-        neighbors = (size_t *)realloc(neighbors, sizeof(size_t) * edges.size());
+        neighbors = (uint40_t *)realloc(neighbors, sizeof(uint40_t) * edges.size());
     CHECK(neighbors) << "allocation failed";
     nedges = edges.size();
 

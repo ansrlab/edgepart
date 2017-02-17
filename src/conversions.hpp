@@ -32,6 +32,7 @@ class Converter
 
   public:
     Converter(std::string basefilename) : basefilename(basefilename) {}
+    virtual ~Converter() {}
     virtual bool done() { return is_exists(binedgelist_name(basefilename)); }
 
     virtual void init()

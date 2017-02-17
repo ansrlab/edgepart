@@ -6,7 +6,9 @@ NePartitioner::NePartitioner(std::string basefilename)
 {
     Timer convert_timer;
     convert_timer.start();
-    convert(basefilename, new Converter(basefilename));
+    Converter *converter = new Converter(basefilename);
+    convert(basefilename, converter);
+    delete converter;
     convert_timer.stop();
     LOG(INFO) << "convert time: " << convert_timer.get_time();
 
@@ -61,10 +63,10 @@ void NePartitioner::assign_remaining()
     auto &is_boundary = is_boundarys[p - 1], &is_core = is_cores[p - 1];
     repv (u, num_vertices)
         for (auto &i : adj_out[u])
-            if (edges[i].valid()) {
-                assign_edge(p - 1, u, edges[i].second);
+            if (edges[i.v].valid()) {
+                assign_edge(p - 1, u, edges[i.v].second);
                 is_boundary.set_bit_unsync(u);
-                is_boundary.set_bit_unsync(edges[i].second);
+                is_boundary.set_bit_unsync(edges[i.v].second);
             }
 
     repv (i, num_vertices) {
@@ -157,7 +159,7 @@ void NePartitioner::split()
             repv (vid, num_vertices) {
                 adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
                 for (size_t i = 0; i < neighbors.size();) {
-                    if (edges[neighbors[i]].valid()) {
+                    if (edges[neighbors[i].v].valid()) {
                         i++;
                     } else {
                         std::swap(neighbors[i], neighbors.back());

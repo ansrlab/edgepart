@@ -5,24 +5,28 @@
 
 #include "util.hpp"
 
+struct uint40_t {
+        uint64_t v:40;
+} __attribute__((packed));
+
 class adjlist_t
 {
   private:
-    size_t *adj;
+    uint40_t *adj;
     vid_t len;
 
   public:
     adjlist_t() : adj(NULL), len(0) {}
-    adjlist_t(size_t *adj, vid_t len = 0) : adj(adj), len(len) {}
-    size_t *begin() { return adj; }
-    size_t *end() { return adj + len; }
+    adjlist_t(uint40_t *adj, vid_t len = 0) : adj(adj), len(len) {}
+    uint40_t *begin() { return adj; }
+    uint40_t *end() { return adj + len; }
     void increment() { len++; }
-    void push_back(size_t data) { adj[len++] = data; }
+    void push_back(size_t data) { adj[len++].v = data; }
     size_t size() const { return len; }
-    size_t &operator[](size_t idx) { return adj[idx]; };
-    const size_t &operator[](size_t idx) const { return adj[idx]; };
-    size_t &back() { return adj[len - 1]; };
-    const size_t &back() const { return adj[len - 1]; };
+    uint40_t &operator[](size_t idx) { return adj[idx]; };
+    const uint40_t &operator[](size_t idx) const { return adj[idx]; };
+    uint40_t &back() { return adj[len - 1]; };
+    const uint40_t &back() const { return adj[len - 1]; };
     void pop_back() { len--; }
     void clear() { len = 0; }
 };
@@ -32,7 +36,7 @@ class graph_t
   private:
     vid_t num_vertices;
     size_t nedges;
-    size_t *neighbors;
+    uint40_t *neighbors;
     std::vector<adjlist_t> vdata;
 
   public:

@@ -105,13 +105,13 @@ class SnePartitioner : public Partitioner
         rep (direction, 2) {
             adjlist_t &neighbors = direction ? adj_out[vid] : adj_in[vid];
             for (size_t i = 0; i < neighbors.size();) {
-                if (sample_edges[neighbors[i]].valid()) {
-                    vid_t &u = direction ? sample_edges[neighbors[i]].second : sample_edges[neighbors[i]].first;
+                if (sample_edges[neighbors[i].v].valid()) {
+                    vid_t &u = direction ? sample_edges[neighbors[i].v].second : sample_edges[neighbors[i].v].first;
                     if (is_core.get(u)) {
                         assign_edge(bucket, direction ? vid : u,
                                     direction ? u : vid);
                         min_heap.decrease_key(vid);
-                        sample_edges[neighbors[i]].remove();
+                        sample_edges[neighbors[i].v].remove();
                         std::swap(neighbors[i], neighbors.back());
                         neighbors.pop_back();
                     } else if (is_boundary.get(u) &&
@@ -120,7 +120,7 @@ class SnePartitioner : public Partitioner
                                     direction ? u : vid);
                         min_heap.decrease_key(vid);
                         min_heap.decrease_key(u);
-                        sample_edges[neighbors[i]].remove();
+                        sample_edges[neighbors[i].v].remove();
                         std::swap(neighbors[i], neighbors.back());
                         neighbors.pop_back();
                     } else
@@ -144,13 +144,13 @@ class SnePartitioner : public Partitioner
         add_boundary(vid);
 
         for (auto &i : adj_out[vid])
-            if (sample_edges[i].valid())
-                add_boundary(sample_edges[i].second);
+            if (sample_edges[i.v].valid())
+                add_boundary(sample_edges[i.v].second);
         adj_out[vid].clear();
 
         for (auto &i : adj_in[vid])
-            if (sample_edges[i].valid())
-                add_boundary(sample_edges[i].first);
+            if (sample_edges[i.v].valid())
+                add_boundary(sample_edges[i.v].first);
         adj_in[vid].clear();
     }
 
