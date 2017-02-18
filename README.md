@@ -15,6 +15,48 @@ their replication factors for comparison:
     -   Neighbor expansion (NE)
     -   Streaming neighbor expansion (SNE)
 
+Compilation and Usage
+---------------------
+
+We tested our program on Ubuntu 14.04/16.04, and it requires the following
+libraries: `glog`, `gflags`, `boost`.
+
+Compile:
+```
+mkdir release && cd release
+cmake ..
+make -j8
+```
+
+Usage:
+```
+$ ./main --help
+main: -filename <path to the input graph> [-filetype <edgelist|adjlist>] [-p <number of partitions>] [-memsize <memory budget in MB>]
+
+  Flags from /home/qliu/workspace/edgepart/src/main.cpp:
+    -filename (the file name of the input graph) type: string default: ""
+    -filetype (the type of input file (supports 'edgelist' and 'adjlist'))
+      type: string default: "edgelist"
+    -inmem (in-memory mode) type: bool default: false
+    -memsize (memory size in megabytes) type: uint64 default: 4096
+    -method (partition method: ne, sne, random, and dbh) type: string
+      default: "sne"
+    -p (number of parititions) type: int32 default: 10
+    -sample_ratio (the sample size divided by num_vertices) type: double
+      default: 2
+```
+
+**Example.** Partition the Orkut graph into 30 parts using our NE algorithm:
+```
+$ ./main -p 30 -method ne -filename /path/to/com-orkut.ungraph.txt
+```
+
+**Example.** Partition the LiveJournal graph into 30 parts using our SNE
+algorithm (`CacheSize = 2|V|`, see our paper for detailed description):
+```
+$ ./main -p 30 -method sne -filename /path/to/com-lj.ungraph.txt -sample_ratio 2
+```
+
 Evaluation
 ----------
 
