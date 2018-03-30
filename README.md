@@ -1,6 +1,8 @@
 Edge Partitioning Algorithms for Large Graphs
 =============================================
 
+> These algorithms are implemented by Qin Liu during his study at CUHK.
+
 In this repo, we implement several edge partitioning algorithms and compute
 their replication factors for comparison:
 
@@ -11,18 +13,23 @@ their replication factors for comparison:
 *   A method based on
     [Hilber space-filling curve](https://en.wikipedia.org/wiki/Hilbert_curve) (HSFC):
     this one is inspired by Frank McSherry's [post](https://github.com/frankmcsherry/blog/blob/master/posts/2015-01-15.md)
-*   Our algorithms described in our paper **Graph Edge Partitioning via Neighborhood Heuristic** (submitted to KDD'17)
-    -   Neighbor expansion (NE)
-    -   Streaming neighbor expansion (SNE)
+*   Our algorithms described in our paper **[Graph Edge Partitioning via Neighborhood Heuristic](http://www.kdd.org/kdd2017/papers/view/graph-edge-partitioning-via-neighborhood-heuristic)** (published in KDD'17)
+    -   Neighbor expansion (NE): described in Section 3 of our paper
+    -   Streaming neighbor expansion (SNE): described in Appendix B of our paper
 
 Compilation and Usage
 ---------------------
 
 We tested our program on Ubuntu 14.04/16.04, and it requires the following
-libraries: `glog`, `gflags`, `boost`.
-
-Compile:
+packages: `cmake`, `glog`, `gflags`, `boost`:
 ```
+sudo apt-get install libgoogle-glog-dev libgflags-dev libboost-all-dev
+```
+
+Compilation:
+```
+git clone https://github.com/ansrlab/edgepart.git
+cd edgepart
 mkdir release && cd release
 cmake ..
 make -j8
